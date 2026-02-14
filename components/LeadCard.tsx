@@ -10,9 +10,10 @@ interface LeadCardProps {
   lead: Lead;
   onPress: () => void;
   onLongPress?: () => void;
+  disableMargin?: boolean;
 }
 
-export function LeadCard({ lead, onPress, onLongPress }: LeadCardProps) {
+export function LeadCard({ lead, onPress, onLongPress, disableMargin }: LeadCardProps) {
   const theme = useTheme();
   const config = LEAD_STATUS_CONFIG[lead.status];
   const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || "Unknown";
@@ -25,13 +26,14 @@ export function LeadCard({ lead, onPress, onLongPress }: LeadCardProps) {
   return (
     <Pressable
       onPress={onPress}
-      onLongPress={handleLongPress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: theme.surface,
           borderColor: theme.border,
           transform: [{ scale: pressed ? 0.98 : 1 }],
+          marginBottom: disableMargin ? 0 : 10,
         },
       ]}
     >

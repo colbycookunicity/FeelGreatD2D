@@ -8,6 +8,7 @@ import { useLeads } from "@/lib/leads-context";
 import { useTheme } from "@/lib/useTheme";
 import { Lead, LeadStatus, LEAD_STATUS_CONFIG } from "@/lib/types";
 import { LeadCard } from "@/components/LeadCard";
+import { SwipeableRow } from "@/components/SwipeableRow";
 
 const SORT_OPTIONS = [
   { key: "recent", label: "Recent" },
@@ -76,11 +77,17 @@ export default function LeadsScreen() {
   };
 
   const renderLead = ({ item }: { item: Lead }) => (
-    <LeadCard
-      lead={item}
+    <SwipeableRow
       onPress={() => router.push({ pathname: "/lead-detail", params: { id: item.id } })}
-      onLongPress={() => handleDelete(item)}
-    />
+      onEdit={() => router.push({ pathname: "/lead-form", params: { id: item.id } })}
+      onDelete={() => handleDelete(item)}
+    >
+      <LeadCard
+        lead={item}
+        onPress={() => {}}
+        disableMargin
+      />
+    </SwipeableRow>
   );
 
   const statusFilters: (LeadStatus | null)[] = [null, "untouched", "not_home", "callback", "appointment", "sold", "not_interested", "follow_up"];
