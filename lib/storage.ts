@@ -1,54 +1,24 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Crypto from "expo-crypto";
+import { apiRequest } from "./query-client";
 import { Lead, DailyStats, LeadStatus, Territory } from "./types";
 
-const LEADS_KEY = "@knockbase_leads";
-const STATS_KEY = "@knockbase_stats";
-const TERRITORIES_KEY = "@knockbase_territories";
-
 export async function getLeads(): Promise<Lead[]> {
-  const data = await AsyncStorage.getItem(LEADS_KEY);
-  return data ? JSON.parse(data) : [];
+  const res = await apiRequest("GET", "/api/leads");
+  return res.json();
 }
 
 export async function saveLead(lead: Omit<Lead, "id" | "createdAt" | "updatedAt">): Promise<Lead> {
-  const leads = await getLeads();
-  const now = new Date().toISOString();
-  const newLead: Lead = {
-    ...lead,
-    id: Crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now,
-  };
-  leads.push(newLead);
-  await AsyncStorage.setItem(LEADS_KEY, JSON.stringify(leads));
-  return newLead;
+  const res = await apiRequest("POST", "/api/leads", lead);
+  return res.json();
 }
 
 export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead | null> {
-  const leads = await getLeads();
-  const index = leads.findIndex((l) => l.id === id);
-  if (index === -1) return null;
-  leads[index] = {
-    ...leads[index],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  await AsyncStorage.setItem(LEADS_KEY, JSON.stringify(leads));
-  return leads[index];
+  const res = await apiRequest("PUT", `/api/leads/${id}`, updates);
+  return res.json();
 }
 
 export async function deleteLead(id: string): Promise<boolean> {
-  const leads = await getLeads();
-  const filtered = leads.filter((l) => l.id !== id);
-  if (filtered.length === leads.length) return false;
-  await AsyncStorage.setItem(LEADS_KEY, JSON.stringify(filtered));
+  await apiRequest("DELETE", `/api/leads/${id}`);
   return true;
-}
-
-export async function getDailyStats(): Promise<DailyStats[]> {
-  const data = await AsyncStorage.getItem(STATS_KEY);
-  return data ? JSON.parse(data) : [];
 }
 
 export function computeTodayStats(leads: Lead[]): DailyStats {
@@ -111,46 +81,26 @@ export function getStatusCounts(leads: Lead[]): Record<LeadStatus, number> {
 }
 
 export async function getTerritories(): Promise<Territory[]> {
-  const data = await AsyncStorage.getItem(TERRITORIES_KEY);
-  return data ? JSON.parse(data) : [];
+  const res = await apiRequest("GET", "/api/territories");
+  return res.json();
 }
 
 export async function saveTerritory(
   territory: Omit<Territory, "id" | "createdAt" | "updatedAt">
 ): Promise<Territory> {
-  const territories = await getTerritories();
-  const now = new Date().toISOString();
-  const newTerritory: Territory = {
-    ...territory,
-    id: Crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now,
-  };
-  territories.push(newTerritory);
-  await AsyncStorage.setItem(TERRITORIES_KEY, JSON.stringify(territories));
-  return newTerritory;
+  const res = await apiRequest("POST", "/api/territories", territory);
+  return res.json();
 }
 
 export async function updateTerritory(
   id: string,
   updates: Partial<Territory>
 ): Promise<Territory | null> {
-  const territories = await getTerritories();
-  const index = territories.findIndex((t) => t.id === id);
-  if (index === -1) return null;
-  territories[index] = {
-    ...territories[index],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  await AsyncStorage.setItem(TERRITORIES_KEY, JSON.stringify(territories));
-  return territories[index];
+  const res = await apiRequest("PUT", `/api/territories/${id}`, updates);
+  return res.json();
 }
 
 export async function deleteTerritory(id: string): Promise<boolean> {
-  const territories = await getTerritories();
-  const filtered = territories.filter((t) => t.id !== id);
-  if (filtered.length === territories.length) return false;
-  await AsyncStorage.setItem(TERRITORIES_KEY, JSON.stringify(filtered));
+  await apiRequest("DELETE", `/api/territories/${id}`);
   return true;
 }

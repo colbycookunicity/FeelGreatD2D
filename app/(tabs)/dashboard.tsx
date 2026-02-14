@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useLeads } from "@/lib/leads-context";
+import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/useTheme";
 import { computeTodayStats, computeWeekStats, getStatusCounts } from "@/lib/storage";
 import { StatCard } from "@/components/StatCard";
@@ -16,6 +17,7 @@ export default function DashboardScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { leads } = useLeads();
+  const { user, isAdmin, logout } = useAuth();
   const [period, setPeriod] = useState<Period>("today");
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
@@ -65,14 +67,31 @@ export default function DashboardScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8 + webTopInset }]}>
-        <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
-        <Pressable
-          onPress={() => router.navigate("/(tabs)/leads")}
-          style={({ pressed }) => [styles.totalBadge, { backgroundColor: theme.tint + "18", opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Text style={[styles.totalCount, { color: theme.tint }]}>{totalLeads}</Text>
-          <Text style={[styles.totalLabel, { color: theme.tint }]}>leads</Text>
-        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
+          {user && (
+            <Text style={[styles.welcomeText, { color: theme.textSecondary }]}>
+              {user.fullName}
+            </Text>
+          )}
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Pressable
+            onPress={() => router.navigate("/(tabs)/leads")}
+            style={({ pressed }) => [styles.totalBadge, { backgroundColor: theme.tint + "18", opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Text style={[styles.totalCount, { color: theme.tint }]}>{totalLeads}</Text>
+            <Text style={[styles.totalLabel, { color: theme.tint }]}>leads</Text>
+          </Pressable>
+          {isAdmin && (
+            <Pressable onPress={() => router.push("/admin")} style={styles.headerIconBtn}>
+              <Ionicons name="people" size={22} color={theme.accentSecondary} />
+            </Pressable>
+          )}
+          <Pressable onPress={logout} style={styles.headerIconBtn}>
+            <Ionicons name="log-out-outline" size={22} color={theme.danger} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.periodRow}>
@@ -384,5 +403,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     marginTop: 2,
+  },
+  welcomeText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  headerIconBtn: {
+    padding: 6,
   },
 });

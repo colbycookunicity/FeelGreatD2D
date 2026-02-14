@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ActivityIndicator, View } from "react-native";
 import {
   useFonts,
   Inter_400Regular,
@@ -13,32 +14,60 @@ import {
 } from "@expo-google-fonts/inter";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LeadsProvider } from "@/lib/leads-context";
 import { TerritoriesProvider } from "@/lib/territories-context";
+import LoginScreen from "@/app/login";
 
 SplashScreen.preventAutoHideAsync();
 
-function RootLayoutNav() {
+function AppNavigator() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color="#10B981" />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="lead-detail"
-        options={{ headerShown: false, presentation: "card" }}
-      />
-      <Stack.Screen
-        name="lead-form"
-        options={{ headerShown: false, presentation: "modal" }}
-      />
-      <Stack.Screen
-        name="map-picker"
-        options={{ headerShown: false, presentation: "fullScreenModal" }}
-      />
-      <Stack.Screen
-        name="territory-editor"
-        options={{ headerShown: false, presentation: "fullScreenModal" }}
-      />
-    </Stack>
+    <LeadsProvider>
+      <TerritoriesProvider>
+        <Stack screenOptions={{ headerBackTitle: "Back" }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="lead-detail"
+            options={{ headerShown: false, presentation: "card" }}
+          />
+          <Stack.Screen
+            name="lead-form"
+            options={{ headerShown: false, presentation: "modal" }}
+          />
+          <Stack.Screen
+            name="map-picker"
+            options={{ headerShown: false, presentation: "fullScreenModal" }}
+          />
+          <Stack.Screen
+            name="territory-editor"
+            options={{ headerShown: false, presentation: "fullScreenModal" }}
+          />
+          <Stack.Screen
+            name="admin"
+            options={{ headerShown: false, presentation: "card" }}
+          />
+          <Stack.Screen
+            name="login"
+            options={{ headerShown: false }}
+          />
+        </Stack>
+      </TerritoriesProvider>
+    </LeadsProvider>
   );
 }
 
@@ -61,15 +90,13 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <LeadsProvider>
-          <TerritoriesProvider>
-            <GestureHandlerRootView>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </TerritoriesProvider>
-        </LeadsProvider>
+        <AuthProvider>
+          <GestureHandlerRootView>
+            <KeyboardProvider>
+              <AppNavigator />
+            </KeyboardProvider>
+          </GestureHandlerRootView>
+        </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
