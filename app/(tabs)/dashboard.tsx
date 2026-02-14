@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { useLeads } from "@/lib/leads-context";
 import { useTheme } from "@/lib/useTheme";
 import { computeTodayStats, computeWeekStats, getStatusCounts } from "@/lib/storage";
@@ -65,10 +66,13 @@ export default function DashboardScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8 + webTopInset }]}>
         <Text style={[styles.title, { color: theme.text }]}>Dashboard</Text>
-        <View style={[styles.totalBadge, { backgroundColor: theme.tint + "18" }]}>
+        <Pressable
+          onPress={() => router.navigate("/(tabs)/leads")}
+          style={({ pressed }) => [styles.totalBadge, { backgroundColor: theme.tint + "18", opacity: pressed ? 0.7 : 1 }]}
+        >
           <Text style={[styles.totalCount, { color: theme.tint }]}>{totalLeads}</Text>
           <Text style={[styles.totalLabel, { color: theme.tint }]}>leads</Text>
-        </View>
+        </Pressable>
       </View>
 
       <View style={styles.periodRow}>
