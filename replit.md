@@ -4,6 +4,9 @@
 KnockBase is a mobile-first door-to-door sales tracking application built with Expo/React Native with a server-backed PostgreSQL database. It helps sales reps manage leads, track visits, and optimize their daily canvassing routes. Features multi-user authentication with role-based access control.
 
 ## Recent Changes
+- 2026-02-14: Added 3-tier role hierarchy (admin > manager > sales_rep) with managerId FK
+- 2026-02-14: Managers can create/manage their own sales reps, see team leads
+- 2026-02-14: Admin panel updated with role selector, manager assignment for reps, grouped display
 - 2026-02-14: Added multi-user auth system (login/logout, session-based, bcrypt passwords)
 - 2026-02-14: Added admin panel for user management (create/edit/delete users, toggle active, change roles)
 - 2026-02-14: Migrated data storage from AsyncStorage to PostgreSQL (leads, territories, users)
@@ -27,13 +30,13 @@ KnockBase is a mobile-first door-to-door sales tracking application built with E
 - Username: admin, Password: admin123 (created on first server start)
 
 ### Database Schema (shared/schema.ts)
-- `users` - id (uuid), username, password (bcrypt), fullName, role (admin/sales_rep), email, phone, isActive
+- `users` - id (uuid), username, password (bcrypt), fullName, role (admin/manager/sales_rep), managerId (nullable FK to users), email, phone, isActive
 - `leads` - id (uuid), userId (FK to users), firstName, lastName, phone, email, address, lat/lng, status, notes, tags, dates
 - `territories` - id (uuid), name, color, points (jsonb polygon), assignedRep
 
 ### API Routes (server/routes.ts)
 - **Auth**: POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
-- **Users** (admin only): GET/POST /api/users, PUT/DELETE /api/users/:id
+- **Users** (admin or manager): GET/POST /api/users, PUT/DELETE /api/users/:id
 - **Leads** (auth required): GET/POST /api/leads, PUT/DELETE /api/leads/:id
 - **Territories** (auth required): GET/POST /api/territories, PUT/DELETE /api/territories/:id
 
@@ -71,9 +74,10 @@ KnockBase is a mobile-first door-to-door sales tracking application built with E
 ### Lead Statuses
 Untouched, Not Home, Not Interested, Callback, Appointment, Sold, Follow Up
 
-### Roles
-- **admin**: Can see all leads, manage users, full access
-- **sales_rep**: Can only see own leads, no user management access
+### Roles (3-tier hierarchy)
+- **admin**: Can see all leads, manage all users (any role), full access
+- **manager**: Can see own + team leads, create/manage sales_reps under their team, has managerId=null
+- **sales_rep**: Can only see own leads, no user management access, has managerId linking to their manager
 
 ## User Preferences
 - Professional sales tool aesthetic
