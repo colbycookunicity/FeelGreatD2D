@@ -24,6 +24,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "point.topleft.down.to.point.bottomright.curvepath", selected: "point.topleft.down.to.point.bottomright.curvepath.fill" }} />
         <Label>Route</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="shop">
+        <Icon sf={{ default: "bag", selected: "bag.fill" }} />
+        <Label>Shop</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="dashboard">
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>Stats</Label>
@@ -99,6 +103,15 @@ function ClassicTabLayout() {
           title: "Route",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="navigate-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="shop"
+        options={{
+          title: "Shop",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bag-outline" size={size} color={color} />
           ),
         }}
       />

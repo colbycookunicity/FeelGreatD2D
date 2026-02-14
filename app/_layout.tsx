@@ -58,6 +58,10 @@ function AppNavigator() {
             options={{ headerShown: false, presentation: "fullScreenModal" }}
           />
           <Stack.Screen
+            name="product-detail"
+            options={{ headerShown: false, presentation: "card" }}
+          />
+          <Stack.Screen
             name="admin"
             options={{ headerShown: false, presentation: "card" }}
           />
