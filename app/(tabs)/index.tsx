@@ -335,31 +335,34 @@ export default function MapScreen() {
       )}
 
       {!isWeb && (
-        <View style={[styles.mapControls, { bottom: bottomOffset }]}>
-          {territories.length > 0 && (
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowTerritories(!showTerritories);
-              }}
-              style={[styles.mapBtn, { backgroundColor: showTerritories ? theme.tint : theme.surface }]}
-            >
-              <Feather name="layers" size={20} color={showTerritories ? "#FFF" : theme.tint} />
-            </Pressable>
-          )}
-          <Pressable
-            onPress={() => router.push("/territory-editor")}
-            style={[styles.mapBtn, { backgroundColor: theme.surface }]}
-          >
-            <Feather name="hexagon" size={20} color={theme.tint} />
-          </Pressable>
+        <>
           <Pressable
             onPress={handleCenterOnUser}
-            style={[styles.mapBtn, { backgroundColor: theme.surface }]}
+            style={[styles.locationBtn, { backgroundColor: theme.surface, bottom: bottomOffset + 76 }]}
           >
-            <Feather name="navigation" size={20} color={theme.tint} />
+            <Feather name="crosshair" size={22} color={theme.tint} />
           </Pressable>
-        </View>
+
+          <View style={[styles.mapControls, { bottom: bottomOffset + 76 + 52 + 8 }]}>
+            {territories.length > 0 && (
+              <Pressable
+                onPress={() => {
+                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                  setShowTerritories(!showTerritories);
+                }}
+                style={[styles.mapBtn, { backgroundColor: showTerritories ? theme.tint : theme.surface }]}
+              >
+                <Feather name="layers" size={20} color={showTerritories ? "#FFF" : theme.tint} />
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => router.push("/territory-editor")}
+              style={[styles.mapBtn, { backgroundColor: theme.surface }]}
+            >
+              <Feather name="hexagon" size={20} color={theme.tint} />
+            </Pressable>
+          </View>
+        </>
       )}
 
       <Pressable
@@ -535,6 +538,20 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+  },
+  locationBtn: {
+    position: "absolute",
+    right: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   mapControls: {
     position: "absolute",
