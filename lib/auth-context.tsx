@@ -22,7 +22,7 @@ interface AuthContextValue {
   isOwner: boolean;
   isAdmin: boolean;
   canManageUsers: boolean;
-  login: (username: string, password: string) => Promise<User>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
 }
 
@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const loginMutation = useMutation({
-    mutationFn: async ({ username, password }: { username: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/auth/login", { username, password });
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const res = await apiRequest("POST", "/api/auth/login", { email, password });
       const data = await res.json();
       return data.user as User;
     },
@@ -57,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const login = useCallback(async (username: string, password: string) => {
-    return loginMutation.mutateAsync({ username, password });
+  const login = useCallback(async (email: string, password: string) => {
+    return loginMutation.mutateAsync({ email, password });
   }, []);
 
   const logout = useCallback(async () => {

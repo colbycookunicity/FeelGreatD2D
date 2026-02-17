@@ -22,6 +22,11 @@ export async function getUserByUsername(username: string): Promise<User | undefi
   return user;
 }
 
+export async function getUserByEmail(email: string): Promise<User | undefined> {
+  const [user] = await db.select().from(users).where(eq(users.email, email));
+  return user;
+}
+
 export async function getAllUsers(): Promise<User[]> {
   return db.select().from(users);
 }
@@ -120,7 +125,7 @@ export async function deleteTerritory(id: string): Promise<boolean> {
 }
 
 export async function seedAdminUser(): Promise<void> {
-  const existing = await getUserByUsername("admin");
+  const existing = await getUserByEmail("admin@knockbase.com");
   if (!existing) {
     await createUser({
       username: "admin",
@@ -130,6 +135,6 @@ export async function seedAdminUser(): Promise<void> {
       email: "admin@knockbase.com",
       phone: "",
     });
-    console.log("Default owner user created (username: admin, password: admin123)");
+    console.log("Default owner user created (email: admin@knockbase.com, password: admin123)");
   }
 }

@@ -105,8 +105,8 @@ export default function AdminScreen() {
   };
 
   const handleSave = async () => {
-    if (!formUsername.trim() || !formFullName.trim()) {
-      setFormError("Username and full name are required");
+    if (!formEmail.trim() || !formFullName.trim()) {
+      setFormError("Email and full name are required");
       return;
     }
     if (!editingUser && !formPassword.trim()) {
@@ -150,7 +150,7 @@ export default function AdminScreen() {
     } catch (err: any) {
       const msg = err?.message || "";
       if (msg.includes("409")) {
-        setFormError("Username already taken");
+        setFormError("Email already taken");
       } else if (msg.includes("403")) {
         setFormError("You don't have permission to do this");
       } else {
@@ -259,8 +259,8 @@ export default function AdminScreen() {
             <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>
               {item.fullName}
             </Text>
-            <Text style={[styles.userMeta, { color: theme.textSecondary }]}>
-              @{item.username}
+            <Text style={[styles.userMeta, { color: theme.textSecondary }]} numberOfLines={1}>
+              {item.email}
               {adminName ? ` \u00B7 ${adminName}'s team` : ""}
             </Text>
           </View>
@@ -391,13 +391,14 @@ export default function AdminScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: theme.textSecondary }]}>Username</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Email (login)</Text>
                 <TextInput
                   style={[styles.formInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                  value={formUsername}
-                  onChangeText={setFormUsername}
+                  value={formEmail}
+                  onChangeText={setFormEmail}
+                  keyboardType="email-address"
                   autoCapitalize="none"
-                  placeholder="username"
+                  placeholder="email@example.com"
                   placeholderTextColor={theme.textSecondary}
                 />
               </View>
@@ -414,14 +415,13 @@ export default function AdminScreen() {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Username (optional)</Text>
                 <TextInput
                   style={[styles.formInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                  value={formEmail}
-                  onChangeText={setFormEmail}
-                  keyboardType="email-address"
+                  value={formUsername}
+                  onChangeText={setFormUsername}
                   autoCapitalize="none"
-                  placeholder="email@example.com"
+                  placeholder="username"
                   placeholderTextColor={theme.textSecondary}
                 />
               </View>

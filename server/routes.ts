@@ -76,19 +76,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const parsed = loginSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Username and password required" });
+        return res.status(400).json({ message: "Email and password required" });
       }
-      const { username, password } = parsed.data;
-      const user = await storage.getUserByUsername(username);
+      const { email, password } = parsed.data;
+      const user = await storage.getUserByEmail(email);
       if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
+        return res.status(401).json({ message: "Invalid email or password" });
       }
       if (user.isActive !== "true") {
         return res.status(403).json({ message: "Account is deactivated" });
       }
       const valid = await storage.verifyPassword(user, password);
       if (!valid) {
-        return res.status(401).json({ message: "Invalid username or password" });
+        return res.status(401).json({ message: "Invalid email or password" });
       }
       req.session.userId = user.id;
       res.json({ user: sanitizeUser(user) });
@@ -142,9 +142,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid user data", errors: parsed.error.flatten() });
       }
-      const existing = await storage.getUserByUsername(parsed.data.username);
+      const existing = await storage.getUserByEmail(parsed.data.email);
       if (existing) {
-        return res.status(409).json({ message: "Username already taken" });
+        return res.status(409).json({ message: "Email already taken" });
       }
       const user = await storage.createUser(parsed.data);
       res.status(201).json(sanitizeUser(user));
