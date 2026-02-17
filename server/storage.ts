@@ -1,13 +1,11 @@
 import { eq, inArray, or } from "drizzle-orm";
 import { db } from "./db";
 import { users, leads, territories, type InsertUser, type User } from "@shared/schema";
-import bcrypt from "bcryptjs";
 
 export async function createUser(data: InsertUser): Promise<User> {
-  const hashedPassword = await bcrypt.hash(data.password, 10);
   const [user] = await db
     .insert(users)
-    .values({ ...data, password: hashedPassword })
+    .values({ ...data, password: "" })
     .returning();
   return user;
 }
@@ -47,21 +45,14 @@ export async function getVisibleUsers(currentUser: User): Promise<User[]> {
 }
 
 export async function updateUser(id: string, data: Partial<Omit<User, "id" | "createdAt">>): Promise<User | undefined> {
-  const updateData: any = { ...data, updatedAt: new Date() };
-  if (data.password) {
-    updateData.password = await bcrypt.hash(data.password, 10);
-  }
-  const [user] = await db.update(users).set(updateData).where(eq(users.id, id)).returning();
+  const { password, ...updateData } = data as any;
+  const [user] = await db.update(users).set({ ...updateData, updatedAt: new Date() }).where(eq(users.id, id)).returning();
   return user;
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
   const result = await db.delete(users).where(eq(users.id, id)).returning();
   return result.length > 0;
-}
-
-export async function verifyPassword(user: User, password: string): Promise<boolean> {
-  return bcrypt.compare(password, user.password);
 }
 
 export async function getLeadsByUserRole(user: User): Promise<any[]> {
@@ -129,12 +120,11 @@ export async function seedAdminUser(): Promise<void> {
   if (!existing) {
     await createUser({
       username: "admin",
-      password: "admin123",
       fullName: "Admin User",
       role: "owner",
       email: "admin@knockbase.com",
       phone: "",
     });
-    console.log("Default owner user created (email: admin@knockbase.com, password: admin123)");
+    console.log("Default owner user created (email: admin@knockbase.com, login via OTP)");
   }
 }

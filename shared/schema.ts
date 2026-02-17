@@ -8,7 +8,7 @@ export const users = pgTable("users", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   username: text("username").notNull().default(""),
-  password: text("password").notNull(),
+  password: text("password").notNull().default(""),
   fullName: text("full_name").notNull().default(""),
   role: text("role").notNull().default("rep"),
   managerId: varchar("manager_id"),
@@ -55,17 +55,11 @@ export const territories = pgTable("territories", {
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
-  password: true,
   fullName: true,
   role: true,
   managerId: true,
   email: true,
   phone: true,
-});
-
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

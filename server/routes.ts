@@ -210,7 +210,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.email !== undefined) updates.email = req.body.email;
       if (req.body.phone !== undefined) updates.phone = req.body.phone;
       if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
-      if (req.body.password) updates.password = req.body.password;
       if (req.body.username) updates.username = req.body.username;
       if (req.body.managerId !== undefined) updates.managerId = req.body.managerId;
 
