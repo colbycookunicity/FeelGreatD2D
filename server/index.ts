@@ -232,13 +232,24 @@ function configureExpoAndLanding(app: express.Application) {
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "dist")));
 
-  // SPA catch-all: serve index.html from Expo web export for client-side routes
+  // SPA catch-all: serve index.html from Expo web export for browser client-side routes only
   const webIndexPath = path.resolve(process.cwd(), "dist", "index.html");
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api") || req.method !== "GET") {
       return next();
     }
-    if (fs.existsSync(webIndexPath)) {
+    // Skip Expo Go / React Native requests (they need JS bundles, not HTML)
+    const expoPlatform = req.header("expo-platform");
+    if (expoPlatform) {
+      return next();
+    }
+    // Skip requests for static files (JS, CSS, images, fonts, maps, etc.)
+    if (/\.\w+$/.test(req.path)) {
+      return next();
+    }
+    // Only serve SPA index.html for browser navigation requests
+    const accept = req.header("accept") || "";
+    if (accept.includes("text/html") && fs.existsSync(webIndexPath)) {
       return res.sendFile(webIndexPath);
     }
     next();
