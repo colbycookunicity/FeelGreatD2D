@@ -22,7 +22,6 @@ interface AuthContextValue {
   isOwner: boolean;
   isAdmin: boolean;
   canManageUsers: boolean;
-  login: (email: string, password: string) => Promise<User>;
   requestOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<User>;
   logout: () => Promise<void>;
@@ -36,17 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
     staleTime: Infinity,
     retry: false,
-  });
-
-  const loginMutation = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/auth/login", { email, password });
-      const data = await res.json();
-      return data.user as User;
-    },
-    onSuccess: (userData) => {
-      queryClient.setQueryData(["/api/auth/me"], userData);
-    },
   });
 
   const requestOtpMutation = useMutation({
@@ -76,10 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const login = useCallback(async (email: string, password: string) => {
-    return loginMutation.mutateAsync({ email, password });
-  }, []);
-
   const requestOtp = useCallback(async (email: string) => {
     return requestOtpMutation.mutateAsync({ email });
   }, []);
@@ -100,12 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isOwner: user?.role === "owner",
       isAdmin: user?.role === "admin",
       canManageUsers: user?.role === "owner" || user?.role === "admin",
-      login,
       requestOtp,
       verifyOtp,
       logout,
     }),
-    [user, isLoading, login, requestOtp, verifyOtp, logout]
+    [user, isLoading, requestOtp, verifyOtp, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
