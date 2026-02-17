@@ -1,8 +1,26 @@
+import * as fs from "fs";
+import * as path from "path";
+
+// Load .env file if it exists (before any other imports that read process.env)
+const envPath = path.resolve(process.cwd(), ".env");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf-8");
+  for (const line of envContent.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim();
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
+
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import * as fs from "fs";
-import * as path from "path";
 
 const app = express();
 const log = console.log;

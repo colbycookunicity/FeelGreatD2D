@@ -1,14 +1,17 @@
-const SHOPIFY_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || "";
-const SHOPIFY_TOKEN = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || "";
 const API_VERSION = "2024-10";
 
 async function shopifyQuery(query: string, variables: Record<string, any> = {}) {
-  const url = `https://${SHOPIFY_DOMAIN}/api/${API_VERSION}/graphql.json`;
+  const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
+  const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || "";
+  if (!domain || !token) {
+    throw new Error("Shopify credentials not configured (SHOPIFY_STORE_DOMAIN / SHOPIFY_STOREFRONT_ACCESS_TOKEN)");
+  }
+  const url = `https://${domain}/api/${API_VERSION}/graphql.json`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Storefront-Access-Token": SHOPIFY_TOKEN,
+      "X-Shopify-Storefront-Access-Token": token,
     },
     body: JSON.stringify({ query, variables }),
   });
