@@ -365,6 +365,11 @@ export default function AdminScreen() {
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No team members yet</Text>
             </View>
           }
+          ListFooterComponent={
+            <Text style={[styles.footerText, { color: theme.textSecondary }]}>
+              Powered by Unicity International{"\n"}{"\u00A9"} 2026 Unicity. All rights reserved.
+            </Text>
+          }
         />
       )}
 
@@ -626,4 +631,5 @@ const styles = StyleSheet.create({
   formErrorText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   saveBtn: { height: 50, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 4 },
   saveBtnText: { color: "#FFF", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  footerText: { textAlign: "center", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 24, lineHeight: 16, opacity: 0.6 },
 });
