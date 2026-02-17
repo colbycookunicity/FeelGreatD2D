@@ -43,7 +43,6 @@ export default function AdminScreen() {
   const [formFullName, setFormFullName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
-  const [formPassword, setFormPassword] = useState("");
   const [formRole, setFormRole] = useState<Role>("rep");
   const [formManagerId, setFormManagerId] = useState<string | null>(null);
   const [formActive, setFormActive] = useState(true);
@@ -82,7 +81,6 @@ export default function AdminScreen() {
     setFormFullName("");
     setFormEmail("");
     setFormPhone("");
-    setFormPassword("");
     setFormRole(isAdmin ? "rep" : "rep");
     setFormManagerId(isAdmin ? (currentUser?.id ?? null) : null);
     setFormActive(true);
@@ -96,7 +94,6 @@ export default function AdminScreen() {
     setFormFullName(user.fullName);
     setFormEmail(user.email);
     setFormPhone(user.phone);
-    setFormPassword("");
     setFormRole(user.role);
     setFormManagerId(user.managerId);
     setFormActive(user.isActive === "true");
@@ -107,10 +104,6 @@ export default function AdminScreen() {
   const handleSave = async () => {
     if (!formEmail.trim() || !formFullName.trim()) {
       setFormError("Email and full name are required");
-      return;
-    }
-    if (!editingUser && !formPassword.trim()) {
-      setFormError("Password is required for new users");
       return;
     }
     setSaving(true);
@@ -126,7 +119,6 @@ export default function AdminScreen() {
           isActive: formActive,
           managerId: formRole === "rep" ? formManagerId : null,
         };
-        if (formPassword.trim()) body.password = formPassword.trim();
         const res = await apiRequest("PUT", `/api/users/${editingUser.id}`, body);
         const updated = await res.json();
         setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
@@ -136,7 +128,6 @@ export default function AdminScreen() {
           fullName: formFullName.trim(),
           email: formEmail.trim(),
           phone: formPhone.trim(),
-          password: formPassword.trim(),
           role: formRole,
         };
         if (formRole === "rep" && formManagerId) {
@@ -434,20 +425,6 @@ export default function AdminScreen() {
                   onChangeText={setFormPhone}
                   keyboardType="phone-pad"
                   placeholder="555-0100"
-                  placeholderTextColor={theme.textSecondary}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: theme.textSecondary }]}>
-                  {editingUser ? "New Password (leave blank to keep)" : "Password"}
-                </Text>
-                <TextInput
-                  style={[styles.formInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                  value={formPassword}
-                  onChangeText={setFormPassword}
-                  secureTextEntry
-                  placeholder={editingUser ? "Leave blank to keep" : "Password"}
                   placeholderTextColor={theme.textSecondary}
                 />
               </View>

@@ -5,7 +5,7 @@ import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import * as storage from "./storage";
 import * as shopify from "./shopify";
-import { insertUserSchema, loginSchema } from "@shared/schema";
+import { insertUserSchema } from "@shared/schema";
 import { requestOtp, verifyOtp, HydraError } from "./services/hydraClient";
 
 declare module "express-session" {
@@ -72,32 +72,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   await storage.seedAdminUser();
-
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const parsed = loginSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: "Email and password required" });
-      }
-      const { email, password } = parsed.data;
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      if (user.isActive !== "true") {
-        return res.status(403).json({ message: "Account is deactivated" });
-      }
-      const valid = await storage.verifyPassword(user, password);
-      if (!valid) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      req.session.userId = user.id;
-      res.json({ user: sanitizeUser(user) });
-    } catch (err) {
-      console.error("Login error:", err);
-      res.status(500).json({ message: "Server error" });
-    }
-  });
 
   // OTP Login: Step 1 - Request OTP code via Hydra
   app.post("/api/auth/otp/request", async (req, res) => {
