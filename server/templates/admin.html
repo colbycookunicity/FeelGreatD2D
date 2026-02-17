@@ -8,45 +8,47 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #F1F5F9; color: #1E293B; min-height: 100vh; }
 
-  /* Login */
   .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
   .login-card { background: #fff; border-radius: 16px; padding: 40px; max-width: 400px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
-  .login-card h1 { font-size: 24px; margin-bottom: 8px; color: #10B981; }
+  .login-card h1 { font-size: 24px; margin-bottom: 8px; color: #0f192f; font-style: italic; }
   .login-card p { color: #64748B; margin-bottom: 24px; font-size: 14px; }
   .form-group { margin-bottom: 16px; }
   .form-group label { display: block; font-size: 13px; font-weight: 600; color: #64748B; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
   .form-group input, .form-group select { width: 100%; height: 44px; border: 1px solid #E2E8F0; border-radius: 10px; padding: 0 14px; font-size: 15px; background: #F8FAFC; transition: border-color 0.2s; }
-  .form-group input:focus, .form-group select:focus { outline: none; border-color: #10B981; background: #fff; }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: #0f192f; background: #fff; }
   .btn { height: 44px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0 20px; transition: opacity 0.2s; }
   .btn:hover { opacity: 0.85; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-primary { background: #10B981; color: #fff; width: 100%; }
+  .btn-primary { background: #0f192f; color: #fff; width: 100%; }
   .btn-sm { height: 34px; font-size: 13px; padding: 0 14px; border-radius: 8px; }
   .btn-danger { background: #EF4444; color: #fff; }
   .btn-outline { background: transparent; border: 1px solid #E2E8F0; color: #64748B; }
-  .btn-outline:hover { border-color: #10B981; color: #10B981; }
+  .btn-outline:hover { border-color: #0f192f; color: #0f192f; }
   .error-msg { color: #EF4444; font-size: 13px; margin-top: 8px; }
+  .success-msg { color: #0f192f; font-size: 13px; margin-top: 8px; }
+  .login-footer { text-align: center; margin-top: 24px; font-size: 11px; color: #94A3B8; }
+  .back-link { font-size: 13px; color: #0f192f; cursor: pointer; display: inline-block; margin-bottom: 16px; }
+  .back-link:hover { text-decoration: underline; }
+  .otp-input { letter-spacing: 8px; font-size: 24px; text-align: center; font-weight: 700; }
 
-  /* App shell */
   .app { display: none; }
-  .topbar { background: #fff; border-bottom: 1px solid #E2E8F0; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-  .topbar h1 { font-size: 20px; color: #1E293B; }
+  .topbar { background: #0f192f; border-bottom: 1px solid #1a2a4a; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar h1 { font-size: 20px; color: #fff; }
   .topbar-right { display: flex; align-items: center; gap: 12px; }
-  .topbar-user { font-size: 13px; color: #64748B; }
-  .topbar-user strong { color: #1E293B; }
+  .topbar-user { font-size: 13px; color: #94A3B8; }
+  .topbar-user strong { color: #fff; }
+  .topbar .btn-outline { border-color: rgba(255,255,255,0.2); color: #fff; }
+  .topbar .btn-outline:hover { border-color: rgba(255,255,255,0.5); }
 
-  /* Stats */
   .stats-bar { display: flex; gap: 16px; padding: 20px 24px; flex-wrap: wrap; }
   .stat-card { background: #fff; border-radius: 12px; padding: 16px 20px; flex: 1; min-width: 120px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .stat-card .stat-value { font-size: 28px; font-weight: 700; }
   .stat-card .stat-label { font-size: 12px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
 
-  /* Content */
   .content { padding: 0 24px 24px; }
   .section-header { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 12px; }
   .section-header h2 { font-size: 14px; color: #64748B; text-transform: uppercase; letter-spacing: 1px; }
 
-  /* User table */
   .user-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .user-table th { text-align: left; padding: 12px 16px; font-size: 12px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; }
   .user-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
@@ -57,15 +59,14 @@
   .role-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
   .role-owner { background: #F3E8FF; color: #8B5CF6; }
   .role-admin { background: #DBEAFE; color: #3B82F6; }
-  .role-rep { background: #D1FAE5; color: #10B981; }
+  .role-rep { background: #E0E7FF; color: #0f192f; }
 
   .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-  .status-active { background: #10B981; }
+  .status-active { background: #22C55E; }
   .status-inactive { background: #EF4444; }
 
   .actions { display: flex; gap: 6px; }
 
-  /* Modal */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
   .modal-overlay.active { display: flex; }
   .modal { background: #fff; border-radius: 16px; padding: 28px; max-width: 480px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
@@ -77,7 +78,7 @@
   .role-selector button.selected { color: #fff; border-color: transparent; }
   .role-selector button[data-role="owner"].selected { background: #8B5CF6; }
   .role-selector button[data-role="admin"].selected { background: #3B82F6; }
-  .role-selector button[data-role="rep"].selected { background: #10B981; }
+  .role-selector button[data-role="rep"].selected { background: #0f192f; }
   .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
   .modal-actions .btn { flex: 1; }
 
@@ -87,7 +88,7 @@
   .toggle input { opacity: 0; width: 0; height: 0; }
   .toggle .slider { position: absolute; inset: 0; background: #CBD5E1; border-radius: 12px; transition: 0.2s; }
   .toggle .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
-  .toggle input:checked + .slider { background: #10B981; }
+  .toggle input:checked + .slider { background: #0f192f; }
   .toggle input:checked + .slider::before { transform: translateX(20px); }
 
   .empty-state { text-align: center; padding: 60px 20px; color: #94A3B8; }
@@ -107,25 +108,36 @@
 </head>
 <body>
 
-<!-- Login Screen -->
 <div id="loginScreen" class="login-wrap">
   <div class="login-card">
     <h1>KnockBase</h1>
     <p>Sign in to manage your team</p>
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" id="loginEmail" placeholder="admin@knockbase.com" autocomplete="email">
+
+    <div id="stepEmail">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="admin@knockbase.com" autocomplete="email">
+      </div>
+      <div id="loginError" class="error-msg" style="display:none"></div>
+      <button class="btn btn-primary" id="sendOtpBtn" style="margin-top:12px">Send Verification Code</button>
     </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+
+    <div id="stepOtp" style="display:none">
+      <span class="back-link" id="backToEmail">&larr; Change email</span>
+      <p style="margin-bottom:16px; font-size:13px; color:#64748B;">Enter the verification code sent to <strong id="otpEmailDisplay"></strong></p>
+      <div class="form-group">
+        <label>Verification Code</label>
+        <input type="text" id="loginOtp" class="otp-input" placeholder="------" maxlength="6" autocomplete="one-time-code" inputmode="numeric">
+      </div>
+      <div id="otpError" class="error-msg" style="display:none"></div>
+      <button class="btn btn-primary" id="verifyOtpBtn" style="margin-top:12px">Verify & Sign In</button>
+      <button class="btn btn-outline" id="resendOtpBtn" style="margin-top:8px; width:100%">Resend Code</button>
     </div>
-    <div id="loginError" class="error-msg" style="display:none"></div>
-    <button class="btn btn-primary" id="loginBtn" style="margin-top:12px">Sign In</button>
+
+    <div class="login-footer">Powered by Unicity International &copy; 2026 Unicity. All rights reserved.</div>
   </div>
 </div>
 
-<!-- App -->
 <div id="app" class="app">
   <div class="topbar">
     <h1>Team Management</h1>
@@ -138,7 +150,7 @@
   <div class="stats-bar">
     <div class="stat-card"><div class="stat-value" id="statOwners" style="color:#8B5CF6">0</div><div class="stat-label">Owners</div></div>
     <div class="stat-card"><div class="stat-value" id="statAdmins" style="color:#3B82F6">0</div><div class="stat-label">Admins</div></div>
-    <div class="stat-card"><div class="stat-value" id="statReps" style="color:#10B981">0</div><div class="stat-label">Reps</div></div>
+    <div class="stat-card"><div class="stat-value" id="statReps" style="color:#0f192f">0</div><div class="stat-label">Reps</div></div>
     <div class="stat-card"><div class="stat-value" id="statActive" style="color:#1E293B">0</div><div class="stat-label">Active</div></div>
   </div>
 
@@ -151,7 +163,6 @@
   </div>
 </div>
 
-<!-- User Modal -->
 <div class="modal-overlay" id="userModal">
   <div class="modal">
     <h2 id="modalTitle">Add User</h2>
@@ -174,10 +185,6 @@
         <label>Phone</label>
         <input type="tel" id="formPhone" placeholder="555-0100">
       </div>
-    </div>
-    <div class="form-group">
-      <label id="passwordLabel">Password *</label>
-      <input type="password" id="formPassword" placeholder="Password">
     </div>
     <div class="form-group">
       <label>Role</label>
@@ -209,8 +216,8 @@
   let allUsers = [];
   let editingUserId = null;
   let selectedRole = 'rep';
+  let pendingEmail = '';
 
-  // API helper
   async function api(method, path, body) {
     const opts = { method, credentials: 'include', headers: {} };
     if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
@@ -219,19 +226,17 @@
       const text = await res.text();
       let msg;
       try { msg = JSON.parse(text).message; } catch { msg = text; }
-      throw new Error(msg || `Error ${res.status}`);
+      throw new Error(msg || 'Error ' + res.status);
     }
     return res.json();
   }
 
-  // Check auth on load
   async function checkAuth() {
     try {
       const data = await api('GET', '/api/auth/me');
       currentUser = data.user;
       if (currentUser.role !== 'owner' && currentUser.role !== 'admin') {
-        document.getElementById('loginError').textContent = 'Admin or Owner access required';
-        document.getElementById('loginError').style.display = 'block';
+        showError('loginError', 'Admin or Owner access required');
         return;
       }
       showApp();
@@ -240,9 +245,20 @@
     }
   }
 
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function hideError(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+
   function showLogin() {
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
+    document.getElementById('stepEmail').style.display = 'block';
+    document.getElementById('stepOtp').style.display = 'none';
   }
 
   function showApp() {
@@ -252,45 +268,90 @@
     loadUsers();
   }
 
-  // Login
-  document.getElementById('loginBtn').addEventListener('click', async () => {
+  document.getElementById('sendOtpBtn').addEventListener('click', async () => {
     const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    const errEl = document.getElementById('loginError');
-    errEl.style.display = 'none';
-    if (!email || !password) { errEl.textContent = 'Email and password required'; errEl.style.display = 'block'; return; }
+    hideError('loginError');
+    if (!email) { showError('loginError', 'Please enter your email address'); return; }
     try {
-      document.getElementById('loginBtn').disabled = true;
-      const data = await api('POST', '/api/auth/login', { email, password });
+      document.getElementById('sendOtpBtn').disabled = true;
+      document.getElementById('sendOtpBtn').textContent = 'Sending...';
+      await api('POST', '/api/auth/otp/request', { email });
+      pendingEmail = email;
+      document.getElementById('otpEmailDisplay').textContent = email;
+      document.getElementById('stepEmail').style.display = 'none';
+      document.getElementById('stepOtp').style.display = 'block';
+      document.getElementById('loginOtp').value = '';
+      document.getElementById('loginOtp').focus();
+    } catch (err) {
+      showError('loginError', err.message);
+    } finally {
+      document.getElementById('sendOtpBtn').disabled = false;
+      document.getElementById('sendOtpBtn').textContent = 'Send Verification Code';
+    }
+  });
+
+  document.getElementById('loginEmail').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('sendOtpBtn').click();
+  });
+
+  document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+    const code = document.getElementById('loginOtp').value.trim();
+    hideError('otpError');
+    if (!code) { showError('otpError', 'Please enter the verification code'); return; }
+    try {
+      document.getElementById('verifyOtpBtn').disabled = true;
+      document.getElementById('verifyOtpBtn').textContent = 'Verifying...';
+      const data = await api('POST', '/api/auth/otp/verify', { email: pendingEmail, code });
       currentUser = data.user;
       if (currentUser.role !== 'owner' && currentUser.role !== 'admin') {
-        errEl.textContent = 'Admin or Owner access required';
-        errEl.style.display = 'block';
-        document.getElementById('loginBtn').disabled = false;
+        showError('otpError', 'Admin or Owner access required');
+        document.getElementById('verifyOtpBtn').disabled = false;
+        document.getElementById('verifyOtpBtn').textContent = 'Verify & Sign In';
         return;
       }
       showApp();
     } catch (err) {
-      errEl.textContent = err.message;
-      errEl.style.display = 'block';
+      showError('otpError', err.message);
     } finally {
-      document.getElementById('loginBtn').disabled = false;
+      document.getElementById('verifyOtpBtn').disabled = false;
+      document.getElementById('verifyOtpBtn').textContent = 'Verify & Sign In';
     }
   });
 
-  // Enter key on password
-  document.getElementById('loginPassword').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('loginBtn').click();
+  document.getElementById('loginOtp').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('verifyOtpBtn').click();
   });
 
-  // Logout
+  document.getElementById('backToEmail').addEventListener('click', () => {
+    document.getElementById('stepEmail').style.display = 'block';
+    document.getElementById('stepOtp').style.display = 'none';
+    hideError('otpError');
+  });
+
+  document.getElementById('resendOtpBtn').addEventListener('click', async () => {
+    hideError('otpError');
+    try {
+      document.getElementById('resendOtpBtn').disabled = true;
+      document.getElementById('resendOtpBtn').textContent = 'Sending...';
+      await api('POST', '/api/auth/otp/request', { email: pendingEmail });
+      document.getElementById('resendOtpBtn').textContent = 'Code Sent!';
+      setTimeout(() => {
+        document.getElementById('resendOtpBtn').textContent = 'Resend Code';
+        document.getElementById('resendOtpBtn').disabled = false;
+      }, 3000);
+    } catch (err) {
+      showError('otpError', err.message);
+      document.getElementById('resendOtpBtn').textContent = 'Resend Code';
+      document.getElementById('resendOtpBtn').disabled = false;
+    }
+  });
+
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await api('POST', '/api/auth/logout').catch(() => {});
     currentUser = null;
     showLogin();
   });
 
-  // Load users
   async function loadUsers() {
     try {
       allUsers = await api('GET', '/api/users');
@@ -315,46 +376,32 @@
       return;
     }
 
-    const admins = allUsers.filter(u => u.role === 'admin');
-    const getAdminName = (id) => { const a = allUsers.find(u => u.id === id); return a ? a.fullName : ''; };
-
-    let html = `<table class="user-table">
-      <thead><tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th class="hide-mobile">Phone</th>
-        <th>Role</th>
-        <th class="hide-mobile">Team</th>
-        <th>Status</th>
-        <th>Actions</th>
-      </tr></thead><tbody>`;
+    let html = '<table class="user-table"><thead><tr><th>Name</th><th>Email</th><th class="hide-mobile">Phone</th><th>Role</th><th class="hide-mobile">Team</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
 
     for (const u of allUsers) {
       const isActive = u.isActive === 'true';
       const isSelf = u.id === currentUser.id;
       const roleClass = 'role-' + u.role;
       const adminName = u.managerId ? getAdminName(u.managerId) : '';
-      html += `<tr class="${isActive ? '' : 'inactive'}">
-        <td><strong>${esc(u.fullName)}</strong>${isSelf ? ' <span style="color:#10B981;font-size:11px">(you)</span>' : ''}</td>
-        <td>${esc(u.email)}</td>
-        <td class="hide-mobile">${esc(u.phone || '-')}</td>
-        <td><span class="role-badge ${roleClass}">${esc(u.role)}</span></td>
-        <td class="hide-mobile">${adminName ? esc(adminName) + "'s team" : '-'}</td>
-        <td><span class="status-dot ${isActive ? 'status-active' : 'status-inactive'}"></span>${isActive ? 'Active' : 'Inactive'}</td>
-        <td class="actions">
-          <button class="btn btn-sm btn-outline" onclick="window._editUser('${u.id}')">Edit</button>
-          ${!isSelf ? `<button class="btn btn-sm btn-danger" onclick="window._deleteUser('${u.id}', '${esc(u.fullName)}')">Delete</button>` : ''}
-        </td>
-      </tr>`;
+      html += '<tr class="' + (isActive ? '' : 'inactive') + '">';
+      html += '<td><strong>' + esc(u.fullName) + '</strong>' + (isSelf ? ' <span style="color:#0f192f;font-size:11px">(you)</span>' : '') + '</td>';
+      html += '<td>' + esc(u.email) + '</td>';
+      html += '<td class="hide-mobile">' + esc(u.phone || '-') + '</td>';
+      html += '<td><span class="role-badge ' + roleClass + '">' + esc(u.role) + '</span></td>';
+      html += '<td class="hide-mobile">' + (adminName ? esc(adminName) + "'s team" : '-') + '</td>';
+      html += '<td><span class="status-dot ' + (isActive ? 'status-active' : 'status-inactive') + '"></span>' + (isActive ? 'Active' : 'Inactive') + '</td>';
+      html += '<td class="actions"><button class="btn btn-sm btn-outline" onclick="window._editUser(\'' + u.id + '\')">Edit</button>';
+      if (!isSelf) html += '<button class="btn btn-sm btn-danger" onclick="window._deleteUser(\'' + u.id + '\', \'' + esc(u.fullName) + '\')">Delete</button>';
+      html += '</td></tr>';
     }
 
     html += '</tbody></table>';
     wrap.innerHTML = html;
   }
 
+  function getAdminName(id) { const a = allUsers.find(u => u.id === id); return a ? a.fullName : ''; }
   function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-  // Modal logic
   const modal = document.getElementById('userModal');
   const roleBtns = document.querySelectorAll('#roleSelector button');
 
@@ -365,9 +412,7 @@
     document.getElementById('formEmail').value = user ? user.email : '';
     document.getElementById('formUsername').value = user ? user.username : '';
     document.getElementById('formPhone').value = user ? user.phone : '';
-    document.getElementById('formPassword').value = '';
     document.getElementById('formActive').checked = user ? user.isActive === 'true' : true;
-    document.getElementById('passwordLabel').textContent = user ? 'New Password (leave blank to keep)' : 'Password *';
     document.getElementById('activeRow').style.display = user && user.id !== currentUser.id ? 'flex' : 'none';
     document.getElementById('formError').style.display = 'none';
 
@@ -375,7 +420,6 @@
     updateRoleUI();
     updateManagerDropdown(user ? user.managerId : null);
 
-    // Admin can only create reps
     roleBtns.forEach(btn => {
       if (currentUser.role === 'admin') {
         btn.style.display = btn.dataset.role === 'rep' ? '' : 'none';
@@ -402,7 +446,7 @@
     const sel = document.getElementById('formManager');
     const admins = allUsers.filter(u => u.role === 'admin');
     sel.innerHTML = '<option value="">Unassigned</option>' +
-      admins.map(a => `<option value="${a.id}" ${a.id === currentManagerId ? 'selected' : ''}>${esc(a.fullName)}</option>`).join('');
+      admins.map(a => '<option value="' + a.id + '"' + (a.id === currentManagerId ? ' selected' : '') + '>' + esc(a.fullName) + '</option>').join('');
   }
 
   roleBtns.forEach(btn => {
@@ -416,23 +460,19 @@
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-  // Save
   document.getElementById('saveBtn').addEventListener('click', async () => {
     const fullName = document.getElementById('formFullName').value.trim();
     const email = document.getElementById('formEmail').value.trim();
     const username = document.getElementById('formUsername').value.trim();
     const phone = document.getElementById('formPhone').value.trim();
-    const password = document.getElementById('formPassword').value.trim();
     const isActive = document.getElementById('formActive').checked;
     const managerId = document.getElementById('formManager').value || null;
     const errEl = document.getElementById('formError');
     errEl.style.display = 'none';
 
     if (!fullName || !email) { errEl.textContent = 'Full name and email are required'; errEl.style.display = 'block'; return; }
-    if (!editingUserId && !password) { errEl.textContent = 'Password is required for new users'; errEl.style.display = 'block'; return; }
 
     const body = { fullName, email, username, phone, role: selectedRole };
-    if (password) body.password = password;
     if (selectedRole === 'rep' && managerId) body.managerId = managerId;
     if (selectedRole !== 'rep') body.managerId = null;
     if (editingUserId) body.isActive = isActive;
@@ -440,7 +480,7 @@
     try {
       document.getElementById('saveBtn').disabled = true;
       if (editingUserId) {
-        await api('PUT', `/api/users/${editingUserId}`, body);
+        await api('PUT', '/api/users/' + editingUserId, body);
       } else {
         await api('POST', '/api/users', body);
       }
@@ -454,23 +494,21 @@
     }
   });
 
-  // Edit / Delete
   window._editUser = function(id) {
     const user = allUsers.find(u => u.id === id);
     if (user) openModal(user);
   };
 
   window._deleteUser = async function(id, name) {
-    if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+    if (!confirm('Delete ' + name + '? This cannot be undone.')) return;
     try {
-      await api('DELETE', `/api/users/${id}`);
+      await api('DELETE', '/api/users/' + id);
       await loadUsers();
     } catch (err) {
       alert('Failed to delete user: ' + err.message);
     }
   };
 
-  // Start
   checkAuth();
 })();
 </script>
