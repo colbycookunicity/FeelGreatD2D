@@ -148,7 +148,7 @@ export default function LoginScreen() {
         </Animated.View>
 
         <Text style={[styles.hint, { color: theme.textSecondary }]}>
-          Contact your admin for account access
+          Contact your team owner for account access
         </Text>
       </View>
     </KeyboardAvoidingView>
