@@ -73,9 +73,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   await storage.seedAdminUser();
 
-  // OTP Login: Step 1 - Request OTP code via Hydra
-  let hydraAvailable = true;
-
   app.post("/api/auth/otp/request", async (req, res) => {
     try {
       const { email } = req.body;
@@ -91,26 +88,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Account is deactivated" });
       }
 
-      try {
-        await requestOtp(email.trim().toLowerCase());
-        hydraAvailable = true;
-        res.json({ message: "Verification code sent to your email", hydra: true });
-      } catch (hydraErr) {
-        console.warn("Hydra OTP unavailable, using direct login fallback:", hydraErr instanceof Error ? hydraErr.message : hydraErr);
-        hydraAvailable = false;
-        res.json({ message: "Enter your email to continue", hydra: false });
-      }
+      await requestOtp(email.trim().toLowerCase());
+      res.json({ message: "Verification code sent to your email" });
     } catch (err) {
+      if (err instanceof HydraError) {
+        return res.status(400).json({ message: err.message, code: err.code });
+      }
       console.error("OTP request error:", err);
-      res.status(500).json({ message: "Failed to process login request" });
+      res.status(500).json({ message: "Failed to send verification code" });
     }
   });
 
   app.post("/api/auth/otp/verify", async (req, res) => {
     try {
       const { email, code } = req.body;
-      if (!email || typeof email !== "string") {
-        return res.status(400).json({ message: "Email is required" });
+      if (!email || typeof email !== "string" || !code || typeof code !== "string") {
+        return res.status(400).json({ message: "Email and code are required" });
       }
 
       const user = await storage.getUserByEmail(email.trim().toLowerCase());
@@ -121,9 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Account is deactivated" });
       }
 
-      if (hydraAvailable && code) {
-        await verifyOtp(email.trim().toLowerCase(), code.trim());
-      }
+      await verifyOtp(email.trim().toLowerCase(), code.trim());
 
       req.session.userId = user.id;
       res.json({ user: sanitizeUser(user), verified: true });

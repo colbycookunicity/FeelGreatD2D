@@ -1,9 +1,26 @@
-const HYDRA_API_URL = process.env.HYDRA_API_URL || "https://hydraqa.unicity.net/v6-test";
+const HYDRA_API_URL = process.env.NODE_ENV === 'development'
+  ? 'https://hydraqa.unicity.net/v6-test'
+  : process.env.HYDRA_API_URL || 'https://hydra.unicity.net/v6';
 
-interface HydraErrorResponse {
-  error?: string;
-  code?: string;
+interface HydraSuccessData {
+  validation_id?: string;
+  expires_at?: string;
+  must_validate?: boolean;
   message?: string;
+  verified_at?: string;
+  email?: string;
+  customer_id?: number;
+}
+
+interface HydraErrorData {
+  error_code: string;
+  message: string;
+  retry_after?: number;
+}
+
+interface HydraResponse {
+  success: boolean;
+  data: HydraSuccessData | HydraErrorData;
 }
 
 export class HydraError extends Error {
@@ -18,9 +35,9 @@ export class HydraError extends Error {
 
 const HYDRA_ERROR_MESSAGES: Record<string, string> = {
   RATE_LIMITED: "Too many requests. Please wait before trying again.",
-  INVALID_OTP: "Invalid or expired verification code.",
-  OTP_EXPIRED: "Invalid or expired verification code.",
-  OTP_NOT_FOUND: "No verification code found. Please request a new one.",
+  INVALID_CODE: "Invalid or expired verification code.",
+  USER_NOT_FOUND: "Email not registered.",
+  SYSTEM_ERROR: "Verification service unavailable. Please try again later.",
 };
 
 function getHydraUserMessage(code: string): string {
@@ -28,35 +45,43 @@ function getHydraUserMessage(code: string): string {
 }
 
 export async function requestOtp(email: string): Promise<void> {
-  const url = `${HYDRA_API_URL}/otp/send`;
-  console.log("Hydra OTP request URL:", url, "for email:", email);
+  const url = `${HYDRA_API_URL}/otp/generate`;
+
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
 
-  if (!res.ok) {
-    const rawText = await res.text();
-    console.error("Hydra OTP error response:", res.status, rawText);
-    let body: HydraErrorResponse = {};
-    try { body = JSON.parse(rawText); } catch {}
-    const code = body.code || body.error || "UNKNOWN";
+  const body = await res.json() as HydraResponse;
+
+  if (!body.success) {
+    const errData = body.data as HydraErrorData;
+    const code = errData.error_code || "UNKNOWN";
     throw new HydraError(code, getHydraUserMessage(code));
   }
 }
 
 export async function verifyOtp(email: string, code: string): Promise<boolean> {
-  const res = await fetch(`${HYDRA_API_URL}/otp/verify`, {
+  const url = `${HYDRA_API_URL}/otp/validate`;
+
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code }),
   });
 
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as HydraErrorResponse;
-    const errorCode = body.code || body.error || "UNKNOWN";
+  const body = await res.json() as HydraResponse;
+
+  if (!body.success) {
+    const errData = body.data as HydraErrorData;
+    const errorCode = errData.error_code || "UNKNOWN";
     throw new HydraError(errorCode, getHydraUserMessage(errorCode));
+  }
+
+  const successData = body.data as HydraSuccessData;
+  if (successData.email && successData.email !== email) {
+    throw new HydraError("EMAIL_MISMATCH", "Email verification mismatch. Please try again.");
   }
 
   return true;
