@@ -4,10 +4,14 @@
 KnockBase is a mobile-first door-to-door sales tracking application built with Expo/React Native with a server-backed PostgreSQL database. It helps sales reps manage leads, track visits, and optimize their daily canvassing routes. Features multi-user authentication with role-based access control.
 
 ## Recent Changes
+- 2026-02-17: Removed password-based login entirely, OTP-only authentication via Hydra
+- 2026-02-17: Users created without passwords, login only via email OTP verification
+- 2026-02-17: Admin panel no longer has password field for user creation/editing
+- 2026-02-17: Fixed SPA catch-all to serve from dist/ (Expo web export output)
 - 2026-02-14: Added 3-tier role hierarchy (admin > manager > sales_rep) with managerId FK
 - 2026-02-14: Managers can create/manage their own sales reps, see team leads
 - 2026-02-14: Admin panel updated with role selector, manager assignment for reps, grouped display
-- 2026-02-14: Added multi-user auth system (login/logout, session-based, bcrypt passwords)
+- 2026-02-14: Added multi-user auth system (login/logout, session-based)
 - 2026-02-14: Added admin panel for user management (create/edit/delete users, toggle active, change roles)
 - 2026-02-14: Migrated data storage from AsyncStorage to PostgreSQL (leads, territories, users)
 - 2026-02-14: Added role-based access: admin sees all leads, sales_rep sees only own leads
@@ -21,16 +25,16 @@ KnockBase is a mobile-first door-to-door sales tracking application built with E
 - **Frontend**: Expo Router (file-based routing) with React Native
 - **Backend**: Express.js on port 5000 with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **Auth**: Session-based auth with bcrypt, connect-pg-simple for session store
+- **Auth**: OTP-only via Hydra API, session-based with connect-pg-simple store (no passwords)
 - **State**: React Context for shared state, React Query for server state
 - **Styling**: StyleSheet with Inter font family, custom color theme
 - **Maps**: react-native-maps v1.18.0 (Expo Go compatible)
 
-### Default Admin Credentials
-- Username: admin, Password: admin123 (created on first server start)
+### Default Admin Account
+- Email: admin@knockbase.com (login via OTP, created on first server start)
 
 ### Database Schema (shared/schema.ts)
-- `users` - id (uuid), username, password (bcrypt), fullName, role (admin/manager/sales_rep), managerId (nullable FK to users), email, phone, isActive
+- `users` - id (uuid), username, fullName, role (owner/admin/rep), managerId (nullable FK to users), email (unique, used for OTP login), phone, isActive
 - `leads` - id (uuid), userId (FK to users), firstName, lastName, phone, email, address, lat/lng, status, notes, tags, dates
 - `territories` - id (uuid), name, color, points (jsonb polygon), assignedRep
 
