@@ -86,4 +86,4 @@ Untouched, Not Home, Not Interested, Callback, Appointment, Sold, Follow Up
 ## User Preferences
 - Professional sales tool aesthetic
 - Dark/light mode support
-- Emerald green primary accent (#10B981)
+- Deep navy primary accent (#0f192f)
