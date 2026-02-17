@@ -219,6 +219,18 @@ function configureExpoAndLanding(app: express.Application) {
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
+  // SPA catch-all: serve index.html from static web build for client-side routes
+  const webIndexPath = path.resolve(process.cwd(), "static-build", "web", "index.html");
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api") || req.method !== "GET") {
+      return next();
+    }
+    if (fs.existsSync(webIndexPath)) {
+      return res.sendFile(webIndexPath);
+    }
+    next();
+  });
+
   log("Expo routing: Checking expo-platform header on / and /manifest");
 }
 
