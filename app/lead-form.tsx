@@ -19,7 +19,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import { useLeads } from "@/lib/leads-context";
 import { useTheme } from "@/lib/useTheme";
-import { LeadStatus, LEAD_STATUS_CONFIG } from "@/lib/types";
+import { Lead, LeadStatus, LEAD_STATUS_CONFIG } from "@/lib/types";
 
 const COMMON_TAGS = ["HOA", "Renter", "Owner", "Gated", "Dog", "Spanish", "Senior", "New Build"];
 
@@ -110,7 +110,7 @@ export default function LeadFormScreen() {
   const handleSave = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (isEditing && existingLead) {
-      await updateLead(existingLead.id, {
+      const updates: Partial<Lead> = {
         firstName,
         lastName,
         phone,
@@ -121,7 +121,11 @@ export default function LeadFormScreen() {
         status,
         appointmentDate: appointmentDate?.toISOString() || null,
         followUpDate: followUpDate?.toISOString() || null,
-      });
+      };
+      if (status !== "untouched" && !existingLead.knockedAt) {
+        updates.knockedAt = new Date().toISOString();
+      }
+      await updateLead(existingLead.id, updates);
     } else {
       await addLead({
         firstName,
@@ -136,7 +140,7 @@ export default function LeadFormScreen() {
         tags,
         followUpDate: followUpDate?.toISOString() || null,
         appointmentDate: appointmentDate?.toISOString() || null,
-        knockedAt: null,
+        knockedAt: status !== "untouched" ? new Date().toISOString() : null,
       });
     }
     router.back();
