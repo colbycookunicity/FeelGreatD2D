@@ -260,6 +260,9 @@ export default function LoginScreen() {
         <Text style={[styles.hint, { color: theme.textSecondary }]}>
           Contact your team owner for account access
         </Text>
+        <Text style={[styles.footer, { color: theme.textSecondary }]}>
+          Powered by Unicity International{"\n"}{"\u00A9"} 2026 Unicity. All rights reserved.
+        </Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -360,5 +363,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_400Regular",
     marginTop: 24,
+  },
+  footer: {
+    textAlign: "center",
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 32,
+    lineHeight: 16,
+    opacity: 0.6,
   },
 });
