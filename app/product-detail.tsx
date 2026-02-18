@@ -62,6 +62,8 @@ export default function ProductDetailScreen() {
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [sendingToPOS, setSendingToPOS] = useState(false);
+  const [draftOrderName, setDraftOrderName] = useState<string | null>(null);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
@@ -118,6 +120,34 @@ export default function ProductDetailScreen() {
       }
     } finally {
       setCheckingOut(false);
+    }
+  }, [selectedVariant, quantity]);
+
+  const handleSendToPOS = useCallback(async () => {
+    if (!selectedVariant) return;
+    setSendingToPOS(true);
+    setDraftOrderName(null);
+    try {
+      const res = await apiRequest("POST", "/api/shopify/draft-order", {
+        lineItems: [{ variantId: selectedVariant.id, quantity }],
+      });
+      const draft = await res.json();
+      setDraftOrderName(draft.name);
+      const msg = `Draft order ${draft.name} created!\n\nOpen Shopify POS → Draft Orders to complete checkout with Tap to Pay.`;
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Sent to POS", msg);
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Failed to create draft order";
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
+    } finally {
+      setSendingToPOS(false);
     }
   }, [selectedVariant, quantity]);
 
@@ -334,6 +364,27 @@ export default function ProductDetailScreen() {
 
         <Pressable
           style={[
+            styles.posBtn,
+            {
+              backgroundColor: product.availableForSale && selectedVariant?.availableForSale !== false ? "#8B5CF6" : theme.textSecondary,
+              opacity: sendingToPOS ? 0.7 : 1,
+            },
+          ]}
+          onPress={handleSendToPOS}
+          disabled={sendingToPOS || !product.availableForSale || selectedVariant?.availableForSale === false}
+        >
+          {sendingToPOS ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="phone-portrait-outline" size={18} color="#FFF" />
+              <Text style={styles.posBtnText}>POS</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[
             styles.buyBtn,
             {
               backgroundColor: product.availableForSale && selectedVariant?.availableForSale !== false ? theme.tint : theme.textSecondary,
@@ -416,6 +467,16 @@ const styles = StyleSheet.create({
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   qtyBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   qtyText: { fontSize: 16, fontFamily: "Inter_700Bold", minWidth: 24, textAlign: "center" },
+  posBtn: {
+    flexDirection: "row",
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+  },
+  posBtnText: { color: "#FFF", fontSize: 14, fontFamily: "Inter_700Bold" },
   buyBtn: {
     flex: 1,
     flexDirection: "row",

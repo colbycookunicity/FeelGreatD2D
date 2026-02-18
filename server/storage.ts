@@ -115,6 +115,16 @@ export async function deleteTerritory(id: string): Promise<boolean> {
   return result.length > 0;
 }
 
+export async function runMigrations(): Promise<void> {
+  const { pool } = await import("./db");
+  // Add last_login_at column if it doesn't exist
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP
+  `).catch(() => {
+    // Column may already exist or table may not exist yet
+  });
+}
+
 export async function seedAdminUser(): Promise<void> {
   const existing = await getUserByEmail("colby.cook@unicity.com");
   if (!existing) {

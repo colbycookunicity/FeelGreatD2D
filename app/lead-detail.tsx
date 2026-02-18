@@ -1,14 +1,16 @@
-import React, { useState, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Linking, Alert } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import React, { useState, useMemo, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Linking, Alert, Modal, FlatList, Image, ActivityIndicator } from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useQuery } from "@tanstack/react-query";
 import { useLeads } from "@/lib/leads-context";
 import { useTheme } from "@/lib/useTheme";
 import { LEAD_STATUS_CONFIG } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DispositionSheet } from "@/components/DispositionSheet";
+import { apiRequest } from "@/lib/query-client";
 
 export default function LeadDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,6 +18,9 @@ export default function LeadDetailScreen() {
   const insets = useSafeAreaInsets();
   const { leads, dispositionLead, deleteLead } = useLeads();
   const [showDisposition, setShowDisposition] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderCart, setOrderCart] = useState<Record<string, number>>({});
+  const [creatingOrder, setCreatingOrder] = useState(false);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
@@ -77,6 +82,71 @@ export default function LeadDetailScreen() {
       ]);
     }
   };
+
+  const { data: productsData, isLoading: productsLoading } = useQuery<{ products: any[]; pageInfo: any }>({
+    queryKey: ["/api/shopify/products"],
+    staleTime: 60000,
+    enabled: showOrderModal,
+  });
+
+  const products = productsData?.products || [];
+
+  const cartCount = useMemo(() => {
+    return Object.values(orderCart).reduce((sum, qty) => sum + qty, 0);
+  }, [orderCart]);
+
+  const updateCart = useCallback((variantId: string, delta: number) => {
+    setOrderCart((prev) => {
+      const current = prev[variantId] || 0;
+      const next = Math.max(0, current + delta);
+      if (next === 0) {
+        const { [variantId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [variantId]: next };
+    });
+  }, []);
+
+  const handleCreateOrder = useCallback(async () => {
+    if (!lead || Object.keys(orderCart).length === 0) return;
+    setCreatingOrder(true);
+    try {
+      const lineItems = Object.entries(orderCart).map(([variantId, quantity]) => ({
+        variantId,
+        quantity,
+      }));
+
+      const res = await apiRequest("POST", "/api/shopify/draft-order", {
+        lineItems,
+        leadId: lead.id,
+        customerFirstName: lead.firstName,
+        customerLastName: lead.lastName,
+        customerEmail: lead.email || undefined,
+        customerPhone: lead.phone || undefined,
+        shippingAddress: lead.address ? { address1: lead.address } : undefined,
+      });
+      const draft = await res.json();
+
+      setShowOrderModal(false);
+      setOrderCart({});
+
+      const msg = `Draft order ${draft.name} created!\n\nOpen Shopify POS → Draft Orders to complete checkout with Tap to Pay.`;
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Order Sent to POS", msg);
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Failed to create order";
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
+    } finally {
+      setCreatingOrder(false);
+    }
+  }, [lead, orderCart]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -217,6 +287,17 @@ export default function LeadDetailScreen() {
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowOrderModal(true);
+          }}
+          style={[styles.orderBtn, { backgroundColor: "#8B5CF6" }]}
+        >
+          <Ionicons name="phone-portrait-outline" size={18} color="#FFF" />
+          <Text style={styles.dispositionText}>Create Order for POS</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setShowDisposition(true);
           }}
           style={[styles.dispositionBtn, { backgroundColor: theme.tint }]}
@@ -225,6 +306,95 @@ export default function LeadDetailScreen() {
           <Text style={styles.dispositionText}>Log Visit</Text>
         </Pressable>
       </ScrollView>
+
+      {/* Order creation modal */}
+      <Modal visible={showOrderModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                Create Order for {fullName}
+              </Text>
+              <Pressable onPress={() => { setShowOrderModal(false); setOrderCart({}); }}>
+                <Ionicons name="close" size={24} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+
+            {productsLoading ? (
+              <View style={styles.modalCenter}>
+                <ActivityIndicator size="large" color={theme.tint} />
+              </View>
+            ) : (
+              <FlatList
+                data={products}
+                keyExtractor={(item: any) => item.id}
+                renderItem={({ item: product }: any) => {
+                  const variant = product.variants?.[0];
+                  if (!variant) return null;
+                  const qty = orderCart[variant.id] || 0;
+                  const img = product.images?.[0];
+                  return (
+                    <View style={[styles.productRow, { borderBottomColor: theme.border }]}>
+                      {img ? (
+                        <Image source={{ uri: img.url }} style={styles.productThumb} />
+                      ) : (
+                        <View style={[styles.productThumb, { backgroundColor: theme.border, alignItems: "center", justifyContent: "center" }]}>
+                          <Ionicons name="cube-outline" size={20} color={theme.textSecondary} />
+                        </View>
+                      )}
+                      <View style={styles.productInfo}>
+                        <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
+                          {product.title}
+                        </Text>
+                        <Text style={[styles.productPrice, { color: theme.tint }]}>
+                          ${parseFloat(variant.price?.amount || "0").toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={styles.qtyControls}>
+                        {qty > 0 && (
+                          <Pressable onPress={() => updateCart(variant.id, -1)} style={[styles.qtyBtn, { borderColor: theme.border }]}>
+                            <Ionicons name="remove" size={18} color={theme.text} />
+                          </Pressable>
+                        )}
+                        {qty > 0 && (
+                          <Text style={[styles.qtyText, { color: theme.text }]}>{qty}</Text>
+                        )}
+                        <Pressable onPress={() => updateCart(variant.id, 1)} style={[styles.qtyBtn, { borderColor: theme.border }]}>
+                          <Ionicons name="add" size={18} color={theme.tint} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View style={styles.modalCenter}>
+                    <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No products available</Text>
+                  </View>
+                }
+              />
+            )}
+
+            {cartCount > 0 && (
+              <Pressable
+                style={[styles.createOrderBtn, { backgroundColor: "#8B5CF6", opacity: creatingOrder ? 0.7 : 1 }]}
+                onPress={handleCreateOrder}
+                disabled={creatingOrder}
+              >
+                {creatingOrder ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="phone-portrait-outline" size={18} color="#FFF" />
+                    <Text style={styles.createOrderBtnText}>
+                      Send {cartCount} item{cartCount > 1 ? "s" : ""} to POS
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <DispositionSheet
         visible={showDisposition}
@@ -374,6 +544,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
   },
+  orderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginTop: 4,
+  },
   dispositionBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -388,4 +567,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  modalCenter: { alignItems: "center", justifyContent: "center", paddingVertical: 40 },
+  productRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  productThumb: { width: 48, height: 48, borderRadius: 8 },
+  productInfo: { flex: 1, gap: 2 },
+  productName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  productPrice: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  qtyControls: { flexDirection: "row", alignItems: "center", gap: 8 },
+  qtyBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  qtyText: { fontSize: 15, fontFamily: "Inter_700Bold", minWidth: 20, textAlign: "center" as const },
+  createOrderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 50,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  createOrderBtnText: { color: "#FFF", fontSize: 16, fontFamily: "Inter_600SemiBold" },
 });

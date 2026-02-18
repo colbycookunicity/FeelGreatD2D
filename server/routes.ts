@@ -5,6 +5,7 @@ import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import * as storage from "./storage";
 import * as shopify from "./shopify";
+import * as shopifyAdmin from "./shopify-admin";
 import { insertUserSchema } from "@shared/schema";
 import { requestOtp, verifyOtp, HydraError } from "./services/hydraClient";
 
@@ -71,6 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
+  await storage.runMigrations();
   await storage.seedAdminUser();
 
   app.post("/api/auth/otp/request", async (req, res) => {
@@ -379,6 +381,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("Shopify shop error:", err);
       res.status(500).json({ message: err.message || "Failed to fetch shop info" });
+    }
+  });
+
+  // Shopify POS Draft Order
+  app.post("/api/shopify/draft-order", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+
+      const { lineItems, leadId, customerEmail, customerFirstName, customerLastName, customerPhone, shippingAddress } = req.body;
+      if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
+        return res.status(400).json({ message: "Line items required" });
+      }
+
+      const tags = ["knockbase", `rep:${user.fullName}`];
+      const note = `KnockBase Order\nRep: ${user.fullName}`;
+      const customAttributes = [
+        { key: "repId", value: user.id },
+        { key: "repName", value: user.fullName },
+      ];
+
+      if (leadId) {
+        tags.push(`lead:${leadId}`);
+        customAttributes.push({ key: "leadId", value: leadId });
+      }
+
+      const draft = await shopifyAdmin.createDraftOrder({
+        lineItems,
+        customer: {
+          firstName: customerFirstName,
+          lastName: customerLastName,
+          email: customerEmail,
+          phone: customerPhone,
+        },
+        shippingAddress,
+        note,
+        tags,
+        customAttributes,
+      });
+
+      res.status(201).json(draft);
+    } catch (err: any) {
+      console.error("Draft order error:", err);
+      res.status(500).json({ message: err.message || "Failed to create draft order" });
     }
   });
 
