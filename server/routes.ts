@@ -72,6 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
+  await storage.runMigrations();
   await storage.seedAdminUser();
 
   app.post("/api/auth/otp/request", async (req, res) => {
