@@ -1,4 +1,4 @@
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, ilike, inArray, or } from "drizzle-orm";
 import { db } from "./db";
 import { users, leads, territories, type InsertUser, type User } from "@shared/schema";
 
@@ -21,7 +21,7 @@ export async function getUserByUsername(username: string): Promise<User | undefi
 }
 
 export async function getUserByEmail(email: string): Promise<User | undefined> {
-  const [user] = await db.select().from(users).where(eq(users.email, email));
+  const [user] = await db.select().from(users).where(ilike(users.email, email));
   return user;
 }
 
