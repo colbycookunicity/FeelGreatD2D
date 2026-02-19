@@ -533,6 +533,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ─── Shopify Admin API Draft Orders (visible in Shopify Admin + POS app) ───
+
+  // Check if Admin API is available
+  app.get("/api/shopify/admin/status", requireAuth, (_req, res) => {
+    res.json({ available: shopifyAdmin.isAdminConfigured() });
+  });
+
+  // Create a real Shopify Draft Order via Admin API
+  app.post("/api/shopify/admin/draft-order", requireAuth, async (req, res) => {
+    try {
+      if (!shopifyAdmin.isAdminConfigured()) {
+        return res.status(503).json({
+          message: "Shopify Admin API not configured. Set SHOPIFY_ADMIN_ACCESS_TOKEN to enable draft orders.",
+        });
+      }
+
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+
+      const {
+        lineItems, leadId, customerEmail, customerFirstName,
+        customerLastName, customerPhone, sendInvoice,
+      } = req.body;
+
+      if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
+        return res.status(400).json({ message: "Line items required" });
+      }
+
+      // Build note with selling plan info since Admin API doesn't support sellingPlanId
+      const planNotes = lineItems
+        .filter((li: any) => li.sellingPlanName)
+        .map((li: any) => `${li.sellingPlanName}`)
+        .join(", ");
+      const noteLines = [`KnockBase Order | Rep: ${user.fullName}`];
+      if (leadId) noteLines.push(`Lead: ${leadId}`);
+      if (planNotes) noteLines.push(`Subscription: ${planNotes}`);
+      const note = noteLines.join(" | ");
+
+      const tags = ["knockbase"];
+      if (lineItems.some((li: any) => li.sellingPlanId)) {
+        tags.push("subscription");
+      }
+
+      const customAttributes = [
+        { key: "repId", value: user.id },
+        { key: "repName", value: user.fullName },
+        { key: "source", value: "knockbase" },
+      ];
+      if (leadId) customAttributes.push({ key: "leadId", value: leadId });
+
+      // Map line items for Admin API (strip sellingPlanId since Admin API doesn't support it)
+      const adminLineItems = lineItems.map((li: any) => ({
+        variantId: li.variantId,
+        quantity: li.quantity,
+      }));
+
+      const draft = await shopifyAdmin.createDraftOrder({
+        lineItems: adminLineItems,
+        customer: {
+          firstName: customerFirstName,
+          lastName: customerLastName,
+          email: customerEmail,
+          phone: customerPhone,
+        },
+        note,
+        tags,
+        customAttributes,
+      });
+
+      // Optionally send invoice email
+      if (sendInvoice && customerEmail && draft.id) {
+        try {
+          await shopifyAdmin.sendDraftOrderInvoice(draft.id, customerEmail);
+          (draft as any).invoiceSent = true;
+        } catch (invoiceErr: any) {
+          console.warn("Failed to send draft order invoice:", invoiceErr.message);
+          (draft as any).invoiceSent = false;
+          (draft as any).invoiceError = invoiceErr.message;
+        }
+      }
+
+      res.status(201).json(draft);
+    } catch (err: any) {
+      console.error("Admin draft order error:", err.message, err.stack);
+      res.status(500).json({ message: err.message || "Failed to create draft order" });
+    }
+  });
+
+  // Send/resend invoice for an existing draft order
+  app.post("/api/shopify/admin/draft-order/:id/send-invoice", requireAuth, async (req, res) => {
+    try {
+      if (!shopifyAdmin.isAdminConfigured()) {
+        return res.status(503).json({ message: "Shopify Admin API not configured" });
+      }
+      const { email } = req.body;
+      const result = await shopifyAdmin.sendDraftOrderInvoice(req.params.id, email);
+      res.json(result);
+    } catch (err: any) {
+      console.error("Send invoice error:", err.message);
+      res.status(500).json({ message: err.message || "Failed to send invoice" });
+    }
+  });
+
   // ─── Shopify OAuth: Install flow to get Admin API access token ───
 
   // Step 1: Visit this URL to start the OAuth install flow

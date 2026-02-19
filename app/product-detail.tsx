@@ -91,6 +91,7 @@ export default function ProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [checkingOut, setCheckingOut] = useState(false);
   const [sendingToPOS, setSendingToPOS] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
   const [draftOrderName, setDraftOrderName] = useState<string | null>(null);
   // null = one-time purchase, string = selling plan ID for subscription
   const [selectedSellingPlanId, setSelectedSellingPlanId] = useState<string | null>(null);
@@ -241,6 +242,58 @@ export default function ProductDetailScreen() {
       setSendingToPOS(false);
     }
   }, [selectedVariant, quantity, selectedSellingPlanId]);
+
+  const handleCreateDraft = useCallback(async () => {
+    if (!selectedVariant) return;
+    setCreatingDraft(true);
+    try {
+      const lineItem: any = { variantId: selectedVariant.id, quantity };
+      if (selectedSellingPlanId) {
+        lineItem.sellingPlanId = selectedSellingPlanId;
+        // Include plan name for the draft order note
+        const plan = sellingPlans.find((p) => p.id === selectedSellingPlanId);
+        if (plan) lineItem.sellingPlanName = plan.name;
+      }
+      const res = await apiRequest("POST", "/api/shopify/admin/draft-order", {
+        lineItems: [lineItem],
+      });
+      const draft = await res.json();
+
+      const draftName = draft.name || "Draft Order";
+      const invoiceUrl = draft.invoiceUrl;
+
+      if (Platform.OS === "web") {
+        const msg = `${draftName} created!\n\nThis draft order is now visible in your Shopify Admin and POS app.${invoiceUrl ? "\n\nOpen the invoice link to email it to the customer?" : ""}`;
+        if (invoiceUrl && confirm(msg)) {
+          window.open(invoiceUrl, "_blank");
+        } else if (!invoiceUrl) {
+          window.alert(msg);
+        }
+      } else {
+        const buttons: any[] = [{ text: "OK" }];
+        if (invoiceUrl) {
+          buttons.unshift({
+            text: "Open Invoice",
+            onPress: () => Linking.openURL(invoiceUrl),
+          });
+        }
+        Alert.alert(
+          "Draft Order Created",
+          `${draftName} saved.\n\nVisible in Shopify Admin & POS app.`,
+          buttons,
+        );
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Failed to create draft order";
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
+    } finally {
+      setCreatingDraft(false);
+    }
+  }, [selectedVariant, quantity, selectedSellingPlanId, sellingPlans]);
 
   if (isLoading) {
     return (
@@ -513,7 +566,28 @@ export default function ProductDetailScreen() {
 
         <Pressable
           style={[
-            styles.posBtn,
+            styles.actionBtn,
+            {
+              backgroundColor: product.availableForSale && selectedVariant?.availableForSale !== false ? "#F59E0B" : theme.textSecondary,
+              opacity: creatingDraft ? 0.7 : 1,
+            },
+          ]}
+          onPress={handleCreateDraft}
+          disabled={creatingDraft || !product.availableForSale || selectedVariant?.availableForSale === false}
+        >
+          {creatingDraft ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={16} color="#FFF" />
+              <Text style={styles.actionBtnText}>Draft</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.actionBtn,
             {
               backgroundColor: product.availableForSale && selectedVariant?.availableForSale !== false ? "#8B5CF6" : theme.textSecondary,
               opacity: sendingToPOS ? 0.7 : 1,
@@ -526,8 +600,8 @@ export default function ProductDetailScreen() {
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
-              <Ionicons name="phone-portrait-outline" size={18} color="#FFF" />
-              <Text style={styles.posBtnText}>POS</Text>
+              <Ionicons name="phone-portrait-outline" size={16} color="#FFF" />
+              <Text style={styles.actionBtnText}>POS</Text>
             </>
           )}
         </Pressable>
@@ -547,7 +621,7 @@ export default function ProductDetailScreen() {
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
-              <Ionicons name="cart-outline" size={20} color="#FFF" />
+              <Ionicons name="cart-outline" size={18} color="#FFF" />
               <Text style={styles.buyBtnText}>
                 {product.availableForSale && selectedVariant?.availableForSale !== false
                   ? "Buy Now"
@@ -627,16 +701,16 @@ const styles = StyleSheet.create({
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   qtyBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   qtyText: { fontSize: 16, fontFamily: "Inter_700Bold", minWidth: 24, textAlign: "center" },
-  posBtn: {
+  actionBtn: {
     flexDirection: "row",
-    height: 48,
-    borderRadius: 12,
+    height: 44,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 16,
+    gap: 4,
+    paddingHorizontal: 12,
   },
-  posBtnText: { color: "#FFF", fontSize: 14, fontFamily: "Inter_700Bold" },
+  actionBtnText: { color: "#FFF", fontSize: 12, fontFamily: "Inter_700Bold" },
   buyBtn: {
     flex: 1,
     flexDirection: "row",

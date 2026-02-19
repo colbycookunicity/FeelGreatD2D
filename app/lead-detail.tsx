@@ -23,6 +23,7 @@ export default function LeadDetailScreen() {
   // Maps variantId -> sellingPlanId (null = one-time purchase)
   const [orderSellingPlans, setOrderSellingPlans] = useState<Record<string, string | null>>({});
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
@@ -173,6 +174,80 @@ export default function LeadDetailScreen() {
       setCreatingOrder(false);
     }
   }, [lead, orderCart, orderSellingPlans]);
+
+  const handleCreateDraftOrder = useCallback(async () => {
+    if (!lead || Object.keys(orderCart).length === 0) return;
+    setCreatingDraft(true);
+    try {
+      const lineItems = Object.entries(orderCart).map(([variantId, quantity]) => {
+        const item: any = { variantId, quantity };
+        const planId = orderSellingPlans[variantId];
+        if (planId) {
+          item.sellingPlanId = planId;
+          // Find plan name from products data for the note
+          const product = products.find((p: any) =>
+            p.variants?.some((v: any) => v.id === variantId)
+          );
+          if (product) {
+            for (const g of product.sellingPlanGroups || []) {
+              const sp = g.sellingPlans?.find((s: any) => s.id === planId);
+              if (sp) { item.sellingPlanName = sp.name; break; }
+            }
+          }
+        }
+        return item;
+      });
+
+      const res = await apiRequest("POST", "/api/shopify/admin/draft-order", {
+        lineItems,
+        leadId: lead.id,
+        customerFirstName: lead.firstName,
+        customerLastName: lead.lastName,
+        customerEmail: lead.email || undefined,
+        customerPhone: lead.phone || undefined,
+        sendInvoice: !!lead.email,
+      });
+      const draft = await res.json();
+
+      setShowOrderModal(false);
+      setOrderCart({});
+      setOrderSellingPlans({});
+
+      const draftName = draft.name || "Draft Order";
+      const invoiceSent = draft.invoiceSent;
+
+      if (Platform.OS === "web") {
+        window.alert(
+          `${draftName} created for ${[lead.firstName, lead.lastName].filter(Boolean).join(" ")}!\n\n` +
+          `Visible in Shopify Admin & POS app.` +
+          (invoiceSent ? `\nInvoice emailed to ${lead.email}.` : "")
+        );
+      } else {
+        const buttons: any[] = [{ text: "OK" }];
+        if (draft.invoiceUrl) {
+          buttons.unshift({
+            text: "Open Invoice",
+            onPress: () => Linking.openURL(draft.invoiceUrl),
+          });
+        }
+        Alert.alert(
+          "Draft Order Created",
+          `${draftName} saved for ${[lead.firstName, lead.lastName].filter(Boolean).join(" ")}.\n\nVisible in Shopify Admin & POS app.` +
+          (invoiceSent ? `\nInvoice emailed to ${lead.email}.` : ""),
+          buttons,
+        );
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Failed to create draft order";
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
+    } finally {
+      setCreatingDraft(false);
+    }
+  }, [lead, orderCart, orderSellingPlans, products]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -458,22 +533,38 @@ export default function LeadDetailScreen() {
             )}
 
             {cartCount > 0 && (
-              <Pressable
-                style={[styles.createOrderBtn, { backgroundColor: "#8B5CF6", opacity: creatingOrder ? 0.7 : 1 }]}
-                onPress={handleCreateOrder}
-                disabled={creatingOrder}
-              >
-                {creatingOrder ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <>
-                    <Ionicons name="phone-portrait-outline" size={18} color="#FFF" />
-                    <Text style={styles.createOrderBtnText}>
-                      Send {cartCount} item{cartCount > 1 ? "s" : ""} to POS
-                    </Text>
-                  </>
-                )}
-              </Pressable>
+              <View style={styles.orderActionsRow}>
+                <Pressable
+                  style={[styles.draftOrderBtn, { opacity: creatingDraft ? 0.7 : 1 }]}
+                  onPress={handleCreateDraftOrder}
+                  disabled={creatingDraft || creatingOrder}
+                >
+                  {creatingDraft ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="document-text-outline" size={16} color="#FFF" />
+                      <Text style={styles.createOrderBtnText}>Draft</Text>
+                    </>
+                  )}
+                </Pressable>
+                <Pressable
+                  style={[styles.createOrderBtn, { backgroundColor: "#8B5CF6", opacity: creatingOrder ? 0.7 : 1 }]}
+                  onPress={handleCreateOrder}
+                  disabled={creatingOrder || creatingDraft}
+                >
+                  {creatingOrder ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="phone-portrait-outline" size={16} color="#FFF" />
+                      <Text style={styles.createOrderBtnText}>
+                        POS Cart ({cartCount})
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
             )}
           </View>
         </View>
@@ -683,6 +774,17 @@ const styles = StyleSheet.create({
   qtyControls: { flexDirection: "row", alignItems: "center", gap: 8 },
   qtyBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   qtyText: { fontSize: 15, fontFamily: "Inter_700Bold", minWidth: 20, textAlign: "center" as const },
+  orderActionsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+  draftOrderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    height: 50,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#F59E0B",
+  },
   planToggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 4 },
   planToggleBtn: {
     paddingHorizontal: 8,
@@ -692,13 +794,13 @@ const styles = StyleSheet.create({
   },
   planToggleText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   createOrderBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 6,
     height: 50,
     borderRadius: 12,
-    marginTop: 16,
   },
   createOrderBtnText: { color: "#FFF", fontSize: 16, fontFamily: "Inter_600SemiBold" },
 });

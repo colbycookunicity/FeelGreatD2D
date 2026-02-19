@@ -76,6 +76,7 @@ export async function createDraftOrder(input: CreateDraftOrderInput) {
           status
           totalPrice
           currencyCode
+          invoiceUrl
           createdAt
           customer {
             id
@@ -158,10 +159,45 @@ export async function createDraftOrder(input: CreateDraftOrderInput) {
     status: draft.status,
     totalPrice: draft.totalPrice,
     currencyCode: draft.currencyCode,
+    invoiceUrl: draft.invoiceUrl,
     createdAt: draft.createdAt,
     customer: draft.customer,
     lineItems: draft.lineItems.edges.map((e: any) => e.node),
   };
+}
+
+export async function sendDraftOrderInvoice(draftOrderId: string, to?: string) {
+  const query = `
+    mutation draftOrderInvoiceSend($id: ID!, $email: EmailInput) {
+      draftOrderInvoiceSend(id: $id, email: $email) {
+        draftOrder {
+          id
+          name
+          status
+          invoiceSentAt
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables: any = { id: draftOrderId };
+  if (to) {
+    variables.email = { to };
+  }
+
+  const data = await adminQuery(query, variables);
+  if (data.draftOrderInvoiceSend.userErrors?.length > 0) {
+    throw new Error(data.draftOrderInvoiceSend.userErrors[0].message);
+  }
+  return data.draftOrderInvoiceSend.draftOrder;
+}
+
+export function isAdminConfigured(): boolean {
+  return !!(process.env.SHOPIFY_STORE_DOMAIN && process.env.SHOPIFY_ADMIN_ACCESS_TOKEN);
 }
 
 export async function checkAccessScopes() {
