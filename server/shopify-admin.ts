@@ -46,6 +46,18 @@ async function adminQuery(query: string, variables: Record<string, any> = {}) {
     },
     body: JSON.stringify({ query, variables }),
   });
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`Shopify Admin API HTTP ${res.status}: ${body}`);
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Shopify Admin API authentication failed (HTTP ${res.status}). Check that SHOPIFY_ADMIN_ACCESS_TOKEN has the required scopes (write_draft_orders, read_products).`
+      );
+    }
+    throw new Error(`Shopify Admin API error (HTTP ${res.status}): ${body.slice(0, 200)}`);
+  }
+
   const json = await res.json();
   if (json.errors) {
     console.error("Shopify Admin GraphQL errors:", JSON.stringify(json.errors));
@@ -115,12 +127,8 @@ export async function createDraftOrder(input: CreateDraftOrderInput) {
     draftInput.customAttributes = input.customAttributes;
   }
 
-  // Attach customer by email lookup or inline
+  // Attach customer by email if provided
   if (input.customer?.email) {
-    draftInput.purchasingEntity = {
-      customerId: undefined,
-    };
-    // Use email-based input instead - Shopify will find or create the customer
     draftInput.email = input.customer.email;
   }
 
