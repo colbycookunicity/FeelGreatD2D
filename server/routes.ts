@@ -6,6 +6,7 @@ import { pool } from "./db";
 import * as storage from "./storage";
 import * as shopify from "./shopify";
 import * as shopifyAdmin from "./shopify-admin";
+import * as shopifyOAuth from "./shopify-oauth";
 import { insertUserSchema, insertOrgUnitSchema } from "@shared/schema";
 import { requestOtp, verifyOtp, HydraError } from "./services/hydraClient";
 
@@ -60,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tableName: "user_sessions",
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "knockbase-dev-secret",
+      secret: process.env.SESSION_SECRET || "feelgreatd2d-dev-secret",
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -537,47 +538,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Shopify POS Draft Order
+  app.get("/api/shopify/admin-scopes", requireAuth, async (_req, res) => {
+    try {
+      const result = await shopifyAdmin.checkAccessScopes();
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Shopify Order via Storefront Cart API
   app.post("/api/shopify/draft-order", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUserById(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
 
-      const { lineItems, leadId, customerEmail, customerFirstName, customerLastName, customerPhone, shippingAddress } = req.body;
+      const { lineItems, leadId, customerEmail, customerFirstName, customerLastName } = req.body;
       if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
         return res.status(400).json({ message: "Line items required" });
       }
 
-      const tags = ["knockbase", `rep:${user.fullName}`];
-      const note = `KnockBase Order\nRep: ${user.fullName}`;
+      const note = `Feel Great D2D Order | Rep: ${user.fullName}${leadId ? ` | Lead: ${leadId}` : ""}`;
       const customAttributes = [
         { key: "repId", value: user.id },
         { key: "repName", value: user.fullName },
+        { key: "source", value: "feelgreatd2d" },
       ];
 
       if (leadId) {
-        tags.push(`lead:${leadId}`);
         customAttributes.push({ key: "leadId", value: leadId });
       }
+      if (customerFirstName || customerLastName) {
+        customAttributes.push({ key: "customerName", value: `${customerFirstName || ""} ${customerLastName || ""}`.trim() });
+      }
+
+      const cart = await shopify.createCartWithAttributes(
+        lineItems,
+        note,
+        customAttributes,
+        customerEmail || undefined,
+      );
+
+      res.status(201).json({
+        id: cart.id,
+        name: `Cart ${cart.id.split("/").pop()?.substring(0, 8) || ""}`,
+        checkoutUrl: cart.checkoutUrl,
+        totalQuantity: cart.totalQuantity,
+        cost: cart.cost,
+        lines: cart.lines,
+      });
+    } catch (err: any) {
+      console.error("Cart order error:", err.message, err.stack);
+      res.status(500).json({ message: err.message || "Failed to create order" });
+    }
+  });
+
+  // ─── Shopify Admin API Draft Orders (visible in Shopify Admin + POS app) ───
+
+  // Check if Admin API is available
+  app.get("/api/shopify/admin/status", requireAuth, (_req, res) => {
+    res.json({ available: shopifyAdmin.isAdminConfigured() });
+  });
+
+  // Create a real Shopify Draft Order via Admin API
+  app.post("/api/shopify/admin/draft-order", requireAuth, async (req, res) => {
+    try {
+      if (!shopifyAdmin.isAdminConfigured()) {
+        return res.status(503).json({
+          message: "Shopify Admin API not configured. Set SHOPIFY_ADMIN_ACCESS_TOKEN to enable draft orders.",
+        });
+      }
+
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "User not found" });
+
+      const {
+        lineItems, leadId, customerEmail, customerFirstName,
+        customerLastName, customerPhone, sendInvoice,
+      } = req.body;
+
+      if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
+        return res.status(400).json({ message: "Line items required" });
+      }
+
+      // Build note with selling plan info since Admin API doesn't support sellingPlanId
+      const planNotes = lineItems
+        .filter((li: any) => li.sellingPlanName)
+        .map((li: any) => `${li.sellingPlanName}`)
+        .join(", ");
+      const noteLines = [`Feel Great D2D Order | Rep: ${user.fullName}`];
+      if (leadId) noteLines.push(`Lead: ${leadId}`);
+      if (planNotes) noteLines.push(`Subscription: ${planNotes}`);
+      const note = noteLines.join(" | ");
+
+      const tags = ["feelgreatd2d"];
+      if (lineItems.some((li: any) => li.sellingPlanId)) {
+        tags.push("subscription");
+      }
+
+      const customAttributes = [
+        { key: "repId", value: user.id },
+        { key: "repName", value: user.fullName },
+        { key: "source", value: "feelgreatd2d" },
+      ];
+      if (leadId) customAttributes.push({ key: "leadId", value: leadId });
+
+      // Map line items for Admin API (strip sellingPlanId since Admin API doesn't support it)
+      const adminLineItems = lineItems.map((li: any) => ({
+        variantId: li.variantId,
+        quantity: li.quantity,
+      }));
 
       const draft = await shopifyAdmin.createDraftOrder({
-        lineItems,
+        lineItems: adminLineItems,
         customer: {
           firstName: customerFirstName,
           lastName: customerLastName,
           email: customerEmail,
           phone: customerPhone,
         },
-        shippingAddress,
         note,
         tags,
         customAttributes,
       });
 
+      // Optionally send invoice email
+      if (sendInvoice && customerEmail && draft.id) {
+        try {
+          await shopifyAdmin.sendDraftOrderInvoice(draft.id, customerEmail);
+          (draft as any).invoiceSent = true;
+        } catch (invoiceErr: any) {
+          console.warn("Failed to send draft order invoice:", invoiceErr.message);
+          (draft as any).invoiceSent = false;
+          (draft as any).invoiceError = invoiceErr.message;
+        }
+      }
+
       res.status(201).json(draft);
     } catch (err: any) {
-      console.error("Draft order error:", err);
+      console.error("Admin draft order error:", err.message, err.stack);
       res.status(500).json({ message: err.message || "Failed to create draft order" });
+    }
+  });
+
+  // Send/resend invoice for an existing draft order
+  app.post("/api/shopify/admin/draft-order/:id/send-invoice", requireAuth, async (req, res) => {
+    try {
+      if (!shopifyAdmin.isAdminConfigured()) {
+        return res.status(503).json({ message: "Shopify Admin API not configured" });
+      }
+      const { email } = req.body;
+      const result = await shopifyAdmin.sendDraftOrderInvoice(req.params.id, email);
+      res.json(result);
+    } catch (err: any) {
+      console.error("Send invoice error:", err.message);
+      res.status(500).json({ message: err.message || "Failed to send invoice" });
+    }
+  });
+
+  // ─── Shopify OAuth: Install flow to get Admin API access token ───
+
+  // Step 1: Visit this URL to start the OAuth install flow
+  app.get("/api/shopify/auth/install", (req, res) => {
+    try {
+      const forwardedProto = req.header("x-forwarded-proto") || req.protocol || "https";
+      const forwardedHost = req.header("x-forwarded-host") || req.get("host");
+      const baseUrl = `${forwardedProto}://${forwardedHost}`;
+      const installUrl = shopifyOAuth.getInstallUrl(baseUrl);
+      res.redirect(installUrl);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Step 2: Shopify redirects here after merchant approves the app
+  app.get("/api/shopify/auth/callback", async (req, res) => {
+    try {
+      const query: Record<string, string> = {};
+      for (const [key, value] of Object.entries(req.query)) {
+        if (typeof value === "string") query[key] = value;
+      }
+
+      const { accessToken, scopes } = await shopifyOAuth.handleCallback(query);
+      const shop = query.shop || process.env.SHOPIFY_STORE_DOMAIN || "unknown";
+
+      // Dynamically update the in-memory env so the admin client works immediately
+      process.env.SHOPIFY_ADMIN_ACCESS_TOKEN = accessToken;
+      console.log(`[Shopify OAuth] Token obtained for ${shop} with scopes: ${scopes}`);
+
+      // Render a page showing the token so the user can copy it into Replit Secrets
+      const html = shopifyOAuth.renderTokenPage(accessToken, scopes, shop);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.status(200).send(html);
+    } catch (err: any) {
+      console.error("Shopify OAuth callback error:", err);
+      res.status(500).json({ error: err.message });
     }
   });
 

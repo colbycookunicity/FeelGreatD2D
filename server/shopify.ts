@@ -51,6 +51,30 @@ export async function getProducts(first = 20, after?: string) {
                 node { url altText width height }
               }
             }
+            sellingPlanGroups(first: 5) {
+              edges {
+                node {
+                  name
+                  sellingPlans(first: 10) {
+                    edges {
+                      node {
+                        id
+                        name
+                        description
+                        recurringDeliveries
+                        priceAdjustments {
+                          adjustmentValue {
+                            ... on SellingPlanPercentagePriceAdjustment { adjustmentPercentage }
+                            ... on SellingPlanFixedAmountPriceAdjustment { adjustmentAmount { amount currencyCode } }
+                            ... on SellingPlanFixedPriceAdjustment { price { amount currencyCode } }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
             variants(first: 20) {
               edges {
                 node {
@@ -61,6 +85,17 @@ export async function getProducts(first = 20, after?: string) {
                   compareAtPrice { amount currencyCode }
                   selectedOptions { name value }
                   image { url altText }
+                  sellingPlanAllocations(first: 10) {
+                    edges {
+                      node {
+                        sellingPlan { id name }
+                        priceAdjustments {
+                          price { amount currencyCode }
+                          compareAtPrice { amount currencyCode }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -74,7 +109,14 @@ export async function getProducts(first = 20, after?: string) {
   const products = data.products.edges.map((e: any) => ({
     ...e.node,
     images: e.node.images.edges.map((ie: any) => ie.node),
-    variants: e.node.variants.edges.map((ve: any) => ve.node),
+    variants: e.node.variants.edges.map((ve: any) => ({
+      ...ve.node,
+      sellingPlanAllocations: ve.node.sellingPlanAllocations?.edges?.map((a: any) => a.node) || [],
+    })),
+    sellingPlanGroups: e.node.sellingPlanGroups?.edges?.map((g: any) => ({
+      ...g.node,
+      sellingPlans: g.node.sellingPlans.edges.map((sp: any) => sp.node),
+    })) || [],
     cursor: e.cursor,
   }));
   return { products, pageInfo: data.products.pageInfo };
@@ -106,6 +148,30 @@ export async function getProduct(id: string) {
             node { url altText width height }
           }
         }
+        sellingPlanGroups(first: 5) {
+          edges {
+            node {
+              name
+              sellingPlans(first: 10) {
+                edges {
+                  node {
+                    id
+                    name
+                    description
+                    recurringDeliveries
+                    priceAdjustments {
+                      adjustmentValue {
+                        ... on SellingPlanPercentagePriceAdjustment { adjustmentPercentage }
+                        ... on SellingPlanFixedAmountPriceAdjustment { adjustmentAmount { amount currencyCode } }
+                        ... on SellingPlanFixedPriceAdjustment { price { amount currencyCode } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
         variants(first: 30) {
           edges {
             node {
@@ -116,6 +182,17 @@ export async function getProduct(id: string) {
               compareAtPrice { amount currencyCode }
               selectedOptions { name value }
               image { url altText }
+              sellingPlanAllocations(first: 10) {
+                edges {
+                  node {
+                    sellingPlan { id name }
+                    priceAdjustments {
+                      price { amount currencyCode }
+                      compareAtPrice { amount currencyCode }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -127,7 +204,14 @@ export async function getProduct(id: string) {
   return {
     ...data.product,
     images: data.product.images.edges.map((ie: any) => ie.node),
-    variants: data.product.variants.edges.map((ve: any) => ve.node),
+    variants: data.product.variants.edges.map((ve: any) => ({
+      ...ve.node,
+      sellingPlanAllocations: ve.node.sellingPlanAllocations?.edges?.map((a: any) => a.node) || [],
+    })),
+    sellingPlanGroups: data.product.sellingPlanGroups?.edges?.map((g: any) => ({
+      ...g.node,
+      sellingPlans: g.node.sellingPlans.edges.map((sp: any) => sp.node),
+    })) || [],
   };
 }
 
@@ -180,7 +264,7 @@ export async function searchProducts(searchQuery: string, first = 20) {
   }));
 }
 
-export async function createCheckout(lineItems: { variantId: string; quantity: number }[]) {
+export async function createCheckout(lineItems: { variantId: string; quantity: number; sellingPlanId?: string }[]) {
   const query = `
     mutation cartCreate($input: CartInput!) {
       cartCreate(input: $input) {
@@ -218,10 +302,16 @@ export async function createCheckout(lineItems: { variantId: string; quantity: n
     }
   `;
   const input = {
-    lines: lineItems.map((item) => ({
-      merchandiseId: item.variantId,
-      quantity: item.quantity,
-    })),
+    lines: lineItems.map((item) => {
+      const line: any = {
+        merchandiseId: item.variantId,
+        quantity: item.quantity,
+      };
+      if (item.sellingPlanId) {
+        line.sellingPlanId = item.sellingPlanId;
+      }
+      return line;
+    }),
   };
   const data = await shopifyQuery(query, { input });
   if (data.cartCreate.userErrors?.length > 0) {
@@ -258,6 +348,132 @@ export async function createCheckout(lineItems: { variantId: string; quantity: n
     id: cart.id,
     checkoutUrl,
     totalQuantity: cart.totalQuantity,
+    cost: cart.cost,
+    lines: cart.lines.edges.map((e: any) => e.node),
+  };
+}
+
+export async function createCartWithAttributes(
+  lineItems: { variantId: string; quantity: number; sellingPlanId?: string }[],
+  note?: string,
+  customAttributes?: { key: string; value: string }[],
+  customerEmail?: string,
+) {
+  const cartInput: any = {
+    lines: lineItems.map((item) => {
+      const line: any = {
+        merchandiseId: item.variantId,
+        quantity: item.quantity,
+      };
+      if (item.sellingPlanId) {
+        line.sellingPlanId = item.sellingPlanId;
+      }
+      return line;
+    }),
+  };
+
+  if (note) {
+    cartInput.note = note;
+  }
+
+  if (customAttributes?.length) {
+    cartInput.attributes = customAttributes;
+  }
+
+  // Trim and validate email before sending to Shopify
+  const trimmedEmail = customerEmail?.trim();
+  if (trimmedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    cartInput.buyerIdentity = { email: trimmedEmail };
+  }
+
+  const query = `
+    mutation cartCreate($input: CartInput!) {
+      cartCreate(input: $input) {
+        cart {
+          id
+          checkoutUrl
+          totalQuantity
+          note
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 20) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    product { title }
+                    image { url altText }
+                  }
+                }
+              }
+            }
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  let data = await shopifyQuery(query, { input: cartInput });
+
+  // If Shopify rejects the email (store customer account settings can reject
+  // valid emails), retry without buyerIdentity so the cart still gets created
+  if (data.cartCreate.userErrors?.length > 0) {
+    const emailError = data.cartCreate.userErrors.some(
+      (e: any) => e.field?.includes("email") || e.message?.toLowerCase().includes("email")
+    );
+    if (emailError && cartInput.buyerIdentity) {
+      console.warn(
+        `Shopify rejected email "${trimmedEmail}", retrying cart without buyerIdentity`
+      );
+      delete cartInput.buyerIdentity;
+      data = await shopifyQuery(query, { input: cartInput });
+    }
+  }
+
+  if (data.cartCreate.userErrors?.length > 0) {
+    throw new Error(data.cartCreate.userErrors[0].message);
+  }
+  const cart = data.cartCreate.cart;
+
+  let checkoutUrl: string = cart.checkoutUrl;
+  const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
+  if (domain && checkoutUrl) {
+    try {
+      const parsed = new URL(checkoutUrl);
+      const shopifyHost = domain.replace(/^https?:\/\//, "");
+      if (parsed.hostname !== shopifyHost) {
+        parsed.hostname = shopifyHost;
+        const cartPathMatch = parsed.pathname.match(/(\/cart\/.*)/);
+        if (cartPathMatch) {
+          parsed.pathname = cartPathMatch[1];
+        }
+      }
+      // Pre-fill customer email on checkout page so it overrides any
+      // existing Shopify session cookie (e.g. the rep's own email)
+      if (trimmedEmail) {
+        parsed.searchParams.set("checkout[email]", trimmedEmail);
+      }
+      checkoutUrl = parsed.toString();
+    } catch {
+    }
+  }
+
+  return {
+    id: cart.id,
+    checkoutUrl,
+    totalQuantity: cart.totalQuantity,
+    note: cart.note,
     cost: cart.cost,
     lines: cart.lines.edges.map((e: any) => e.node),
   };

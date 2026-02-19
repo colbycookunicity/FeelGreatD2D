@@ -1,8 +1,8 @@
-# CLAUDE.md - KnockBase
+# CLAUDE.md - Feel Great D2D
 
 ## Project Overview
 
-KnockBase is a mobile-first door-to-door sales tracking application. Sales reps use it to manage leads, track visits on an interactive map, draw territory boundaries, plan routes, view performance dashboards, and browse/sell Shopify products in the field.
+Feel Great D2D is a mobile-first door-to-door sales tracking application. Sales reps use it to manage leads, track visits on an interactive map, draw territory boundaries, plan routes, view performance dashboards, and browse/sell Shopify products in the field.
 
 ## Tech Stack
 
@@ -48,7 +48,7 @@ npm run lint:fix
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `SHOPIFY_STORE_DOMAIN` | For shop features | e.g. `your-store.myshopify.com` |
 | `SHOPIFY_STOREFRONT_ACCESS_TOKEN` | For shop features | Shopify Storefront API token |
-| `SESSION_SECRET` | Recommended | Session encryption key (defaults to `knockbase-dev-secret`) |
+| `SESSION_SECRET` | Recommended | Session encryption key (defaults to `feelgreatd2d-dev-secret`) |
 | `PORT` | No | Server port (defaults to 5000) |
 | `NODE_ENV` | No | `development` or `production` |
 | `REPLIT_DEV_DOMAIN` | Replit only | Dev domain for proxy |
@@ -58,7 +58,7 @@ npm run lint:fix
 ## Project Structure
 
 ```
-knockbase/
+feel-great-d2d/
 ├── app/                        # Expo Router screens (file-based routing)
 │   ├── _layout.tsx             # Root layout with auth gate + providers
 │   ├── login.tsx               # Login screen
@@ -202,11 +202,11 @@ Uses Shopify Storefront API v2024-10 via GraphQL. Requires `SHOPIFY_STORE_DOMAIN
 
 **Three Shopify sales channels:**
 1. **Online Store** - Hidden (password protected), not used for pilot
-2. **Headless/Storefront API** - KnockBase app reads products and creates checkouts via this channel
+2. **Headless/Storefront API** - Feel Great D2D app reads products and creates checkouts via this channel
 3. **POS** - Distributors use Shopify POS app with tap-to-pay card readers for in-person sales
 
 **Data flow:**
-- KnockBase -> Storefront API -> products/checkout
+- Feel Great D2D -> Storefront API -> products/checkout
 - Shopify -> Unicity: Order data (SKU, quantity, price, customer email, POS staff) for commission/PV/BV
 - Unicity -> Shopify: customer_ID written to Shopify customer metafield for relationship mapping
 

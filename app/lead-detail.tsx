@@ -20,7 +20,10 @@ export default function LeadDetailScreen() {
   const [showDisposition, setShowDisposition] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderCart, setOrderCart] = useState<Record<string, number>>({});
+  // Maps variantId -> sellingPlanId (null = one-time purchase)
+  const [orderSellingPlans, setOrderSellingPlans] = useState<Record<string, string | null>>({});
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
@@ -111,10 +114,14 @@ export default function LeadDetailScreen() {
     if (!lead || Object.keys(orderCart).length === 0) return;
     setCreatingOrder(true);
     try {
-      const lineItems = Object.entries(orderCart).map(([variantId, quantity]) => ({
-        variantId,
-        quantity,
-      }));
+      const lineItems = Object.entries(orderCart).map(([variantId, quantity]) => {
+        const item: any = { variantId, quantity };
+        const planId = orderSellingPlans[variantId];
+        if (planId) {
+          item.sellingPlanId = planId;
+        }
+        return item;
+      });
 
       const res = await apiRequest("POST", "/api/shopify/draft-order", {
         lineItems,
@@ -123,18 +130,38 @@ export default function LeadDetailScreen() {
         customerLastName: lead.lastName,
         customerEmail: lead.email || undefined,
         customerPhone: lead.phone || undefined,
-        shippingAddress: lead.address ? { address1: lead.address } : undefined,
       });
-      const draft = await res.json();
+      const cart = await res.json();
 
       setShowOrderModal(false);
       setOrderCart({});
+      setOrderSellingPlans({});
 
-      const msg = `Draft order ${draft.name} created!\n\nOpen Shopify POS → Draft Orders to complete checkout with Tap to Pay.`;
-      if (Platform.OS === "web") {
-        window.alert(msg);
+      if (cart.checkoutUrl) {
+        const openCheckout = async () => {
+          try {
+            await Linking.openURL(cart.checkoutUrl);
+          } catch {}
+        };
+        if (Platform.OS === "web") {
+          window.open(cart.checkoutUrl, "_blank");
+        } else {
+          Alert.alert(
+            "Order Created",
+            `Cart ready for checkout.\n\nWould you like to open the checkout now?`,
+            [
+              { text: "Later", style: "cancel" },
+              { text: "Open Checkout", onPress: openCheckout },
+            ]
+          );
+        }
       } else {
-        Alert.alert("Order Sent to POS", msg);
+        const msg = `Order ${cart.name} created!`;
+        if (Platform.OS === "web") {
+          window.alert(msg);
+        } else {
+          Alert.alert("Order Created", msg);
+        }
       }
     } catch (err: any) {
       const msg = err?.message || "Failed to create order";
@@ -146,7 +173,81 @@ export default function LeadDetailScreen() {
     } finally {
       setCreatingOrder(false);
     }
-  }, [lead, orderCart]);
+  }, [lead, orderCart, orderSellingPlans]);
+
+  const handleCreateDraftOrder = useCallback(async () => {
+    if (!lead || Object.keys(orderCart).length === 0) return;
+    setCreatingDraft(true);
+    try {
+      const lineItems = Object.entries(orderCart).map(([variantId, quantity]) => {
+        const item: any = { variantId, quantity };
+        const planId = orderSellingPlans[variantId];
+        if (planId) {
+          item.sellingPlanId = planId;
+          // Find plan name from products data for the note
+          const product = products.find((p: any) =>
+            p.variants?.some((v: any) => v.id === variantId)
+          );
+          if (product) {
+            for (const g of product.sellingPlanGroups || []) {
+              const sp = g.sellingPlans?.find((s: any) => s.id === planId);
+              if (sp) { item.sellingPlanName = sp.name; break; }
+            }
+          }
+        }
+        return item;
+      });
+
+      const res = await apiRequest("POST", "/api/shopify/admin/draft-order", {
+        lineItems,
+        leadId: lead.id,
+        customerFirstName: lead.firstName,
+        customerLastName: lead.lastName,
+        customerEmail: lead.email || undefined,
+        customerPhone: lead.phone || undefined,
+        sendInvoice: !!lead.email,
+      });
+      const draft = await res.json();
+
+      setShowOrderModal(false);
+      setOrderCart({});
+      setOrderSellingPlans({});
+
+      const draftName = draft.name || "Draft Order";
+      const invoiceSent = draft.invoiceSent;
+
+      if (Platform.OS === "web") {
+        window.alert(
+          `${draftName} created for ${[lead.firstName, lead.lastName].filter(Boolean).join(" ")}!\n\n` +
+          `Visible in Shopify Admin & POS app.` +
+          (invoiceSent ? `\nInvoice emailed to ${lead.email}.` : "")
+        );
+      } else {
+        const buttons: any[] = [{ text: "OK" }];
+        if (draft.invoiceUrl) {
+          buttons.unshift({
+            text: "Open Invoice",
+            onPress: () => Linking.openURL(draft.invoiceUrl),
+          });
+        }
+        Alert.alert(
+          "Draft Order Created",
+          `${draftName} saved for ${[lead.firstName, lead.lastName].filter(Boolean).join(" ")}.\n\nVisible in Shopify Admin & POS app.` +
+          (invoiceSent ? `\nInvoice emailed to ${lead.email}.` : ""),
+          buttons,
+        );
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Failed to create draft order";
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("Error", msg);
+      }
+    } finally {
+      setCreatingDraft(false);
+    }
+  }, [lead, orderCart, orderSellingPlans, products]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -315,7 +416,7 @@ export default function LeadDetailScreen() {
               <Text style={[styles.modalTitle, { color: theme.text }]}>
                 Create Order for {fullName}
               </Text>
-              <Pressable onPress={() => { setShowOrderModal(false); setOrderCart({}); }}>
+              <Pressable onPress={() => { setShowOrderModal(false); setOrderCart({}); setOrderSellingPlans({}); }}>
                 <Ionicons name="close" size={24} color={theme.textSecondary} />
               </Pressable>
             </View>
@@ -333,6 +434,24 @@ export default function LeadDetailScreen() {
                   if (!variant) return null;
                   const qty = orderCart[variant.id] || 0;
                   const img = product.images?.[0];
+                  const sellingPlans: any[] = [];
+                  (product.sellingPlanGroups || []).forEach((g: any) => {
+                    (g.sellingPlans || []).forEach((sp: any) => sellingPlans.push(sp));
+                  });
+                  const hasPlans = sellingPlans.length > 0;
+                  const currentPlanId = orderSellingPlans[variant.id] || null;
+
+                  // Resolve displayed price based on selected selling plan
+                  let displayPrice = parseFloat(variant.price?.amount || "0");
+                  if (currentPlanId && variant.sellingPlanAllocations) {
+                    const alloc = variant.sellingPlanAllocations.find(
+                      (a: any) => a.sellingPlan.id === currentPlanId
+                    );
+                    if (alloc?.priceAdjustments?.[0]?.price) {
+                      displayPrice = parseFloat(alloc.priceAdjustments[0].price.amount);
+                    }
+                  }
+
                   return (
                     <View style={[styles.productRow, { borderBottomColor: theme.border }]}>
                       {img ? (
@@ -347,8 +466,47 @@ export default function LeadDetailScreen() {
                           {product.title}
                         </Text>
                         <Text style={[styles.productPrice, { color: theme.tint }]}>
-                          ${parseFloat(variant.price?.amount || "0").toFixed(2)}
+                          ${displayPrice.toFixed(2)}
+                          {currentPlanId ? " /mo" : ""}
                         </Text>
+                        {hasPlans && (
+                          <View style={styles.planToggleRow}>
+                            <Pressable
+                              onPress={() => setOrderSellingPlans((prev) => ({ ...prev, [variant.id]: null }))}
+                              style={[
+                                styles.planToggleBtn,
+                                {
+                                  backgroundColor: !currentPlanId ? theme.tint : "transparent",
+                                  borderColor: !currentPlanId ? theme.tint : theme.border,
+                                },
+                              ]}
+                            >
+                              <Text style={[styles.planToggleText, { color: !currentPlanId ? "#FFF" : theme.textSecondary }]}>
+                                One-time
+                              </Text>
+                            </Pressable>
+                            {sellingPlans.map((sp: any) => {
+                              const isSel = currentPlanId === sp.id;
+                              return (
+                                <Pressable
+                                  key={sp.id}
+                                  onPress={() => setOrderSellingPlans((prev) => ({ ...prev, [variant.id]: sp.id }))}
+                                  style={[
+                                    styles.planToggleBtn,
+                                    {
+                                      backgroundColor: isSel ? "#8B5CF6" : "transparent",
+                                      borderColor: isSel ? "#8B5CF6" : theme.border,
+                                    },
+                                  ]}
+                                >
+                                  <Text style={[styles.planToggleText, { color: isSel ? "#FFF" : theme.textSecondary }]}>
+                                    {sp.name.replace(/subscriptions?/i, "Sub").replace(/monthly/i, "Monthly")}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        )}
                       </View>
                       <View style={styles.qtyControls}>
                         {qty > 0 && (
@@ -375,22 +533,38 @@ export default function LeadDetailScreen() {
             )}
 
             {cartCount > 0 && (
-              <Pressable
-                style={[styles.createOrderBtn, { backgroundColor: "#8B5CF6", opacity: creatingOrder ? 0.7 : 1 }]}
-                onPress={handleCreateOrder}
-                disabled={creatingOrder}
-              >
-                {creatingOrder ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <>
-                    <Ionicons name="phone-portrait-outline" size={18} color="#FFF" />
-                    <Text style={styles.createOrderBtnText}>
-                      Send {cartCount} item{cartCount > 1 ? "s" : ""} to POS
-                    </Text>
-                  </>
-                )}
-              </Pressable>
+              <View style={styles.orderActionsRow}>
+                <Pressable
+                  style={[styles.draftOrderBtn, { opacity: creatingDraft ? 0.7 : 1 }]}
+                  onPress={handleCreateDraftOrder}
+                  disabled={creatingDraft || creatingOrder}
+                >
+                  {creatingDraft ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="document-text-outline" size={16} color="#FFF" />
+                      <Text style={styles.createOrderBtnText}>Draft</Text>
+                    </>
+                  )}
+                </Pressable>
+                <Pressable
+                  style={[styles.createOrderBtn, { backgroundColor: "#8B5CF6", opacity: creatingOrder ? 0.7 : 1 }]}
+                  onPress={handleCreateOrder}
+                  disabled={creatingOrder || creatingDraft}
+                >
+                  {creatingOrder ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="phone-portrait-outline" size={16} color="#FFF" />
+                      <Text style={styles.createOrderBtnText}>
+                        POS Cart ({cartCount})
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
             )}
           </View>
         </View>
@@ -600,14 +774,33 @@ const styles = StyleSheet.create({
   qtyControls: { flexDirection: "row", alignItems: "center", gap: 8 },
   qtyBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   qtyText: { fontSize: 15, fontFamily: "Inter_700Bold", minWidth: 20, textAlign: "center" as const },
-  createOrderBtn: {
+  orderActionsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+  draftOrderBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 6,
     height: 50,
     borderRadius: 12,
-    marginTop: 16,
+    paddingHorizontal: 16,
+    backgroundColor: "#F59E0B",
+  },
+  planToggleRow: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 4 },
+  planToggleBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  planToggleText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  createOrderBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    height: 50,
+    borderRadius: 12,
   },
   createOrderBtnText: { color: "#FFF", fontSize: 16, fontFamily: "Inter_600SemiBold" },
 });

@@ -19,6 +19,32 @@ import * as Linking from "expo-linking";
 import { useTheme } from "@/lib/useTheme";
 import { apiRequest } from "@/lib/query-client";
 
+interface SellingPlan {
+  id: string;
+  name: string;
+  description: string;
+  recurringDeliveries: boolean;
+  priceAdjustments: {
+    adjustmentValue:
+      | { adjustmentPercentage: number }
+      | { adjustmentAmount: { amount: string; currencyCode: string } }
+      | { price: { amount: string; currencyCode: string } };
+  }[];
+}
+
+interface SellingPlanGroup {
+  name: string;
+  sellingPlans: SellingPlan[];
+}
+
+interface SellingPlanAllocation {
+  sellingPlan: { id: string; name: string };
+  priceAdjustments: {
+    price: { amount: string; currencyCode: string };
+    compareAtPrice: { amount: string; currencyCode: string } | null;
+  }[];
+}
+
 interface Variant {
   id: string;
   title: string;
@@ -27,6 +53,7 @@ interface Variant {
   compareAtPrice: { amount: string; currencyCode: string } | null;
   selectedOptions: { name: string; value: string }[];
   image: { url: string; altText: string | null } | null;
+  sellingPlanAllocations?: SellingPlanAllocation[];
 }
 
 interface Product {
@@ -44,6 +71,7 @@ interface Product {
   };
   images: { url: string; altText: string | null; width: number; height: number }[];
   variants: Variant[];
+  sellingPlanGroups?: SellingPlanGroup[];
 }
 
 function formatPrice(amount: string, currency: string) {
@@ -63,7 +91,10 @@ export default function ProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [checkingOut, setCheckingOut] = useState(false);
   const [sendingToPOS, setSendingToPOS] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
   const [draftOrderName, setDraftOrderName] = useState<string | null>(null);
+  // null = one-time purchase, string = selling plan ID for subscription
+  const [selectedSellingPlanId, setSelectedSellingPlanId] = useState<string | null>(null);
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
@@ -100,12 +131,55 @@ export default function ProductDetailScreen() {
     }));
   }, [product]);
 
+  // Flatten all selling plans from all groups for the toggle UI
+  const sellingPlans = useMemo(() => {
+    if (!product?.sellingPlanGroups?.length) return [];
+    const plans: SellingPlan[] = [];
+    product.sellingPlanGroups.forEach((group) => {
+      group.sellingPlans.forEach((sp) => plans.push(sp));
+    });
+    return plans;
+  }, [product]);
+
+  const hasSellingPlans = sellingPlans.length > 0;
+
+  // Get the price for the selected variant under the selected selling plan
+  const resolvedPrice = useMemo(() => {
+    if (!selectedVariant) return null;
+    if (!selectedSellingPlanId) {
+      // One-time purchase: use variant's base price
+      return {
+        price: selectedVariant.price,
+        compareAtPrice: selectedVariant.compareAtPrice,
+      };
+    }
+    // Find the allocation for this selling plan on this variant
+    const alloc = selectedVariant.sellingPlanAllocations?.find(
+      (a) => a.sellingPlan.id === selectedSellingPlanId
+    );
+    if (alloc?.priceAdjustments?.[0]) {
+      return {
+        price: alloc.priceAdjustments[0].price,
+        compareAtPrice: alloc.priceAdjustments[0].compareAtPrice,
+      };
+    }
+    // Fallback to variant base price
+    return {
+      price: selectedVariant.price,
+      compareAtPrice: selectedVariant.compareAtPrice,
+    };
+  }, [selectedVariant, selectedSellingPlanId]);
+
   const handleCheckout = useCallback(async () => {
     if (!selectedVariant) return;
     setCheckingOut(true);
     try {
+      const lineItem: any = { variantId: selectedVariant.id, quantity };
+      if (selectedSellingPlanId) {
+        lineItem.sellingPlanId = selectedSellingPlanId;
+      }
       const res = await apiRequest("POST", "/api/shopify/checkout", {
-        lineItems: [{ variantId: selectedVariant.id, quantity }],
+        lineItems: [lineItem],
       });
       const cart = await res.json();
       if (cart.checkoutUrl) {
@@ -121,23 +195,93 @@ export default function ProductDetailScreen() {
     } finally {
       setCheckingOut(false);
     }
-  }, [selectedVariant, quantity]);
+  }, [selectedVariant, quantity, selectedSellingPlanId]);
 
   const handleSendToPOS = useCallback(async () => {
     if (!selectedVariant) return;
     setSendingToPOS(true);
     setDraftOrderName(null);
     try {
+      const lineItem: any = { variantId: selectedVariant.id, quantity };
+      if (selectedSellingPlanId) {
+        lineItem.sellingPlanId = selectedSellingPlanId;
+      }
       const res = await apiRequest("POST", "/api/shopify/draft-order", {
-        lineItems: [{ variantId: selectedVariant.id, quantity }],
+        lineItems: [lineItem],
       });
-      const draft = await res.json();
-      setDraftOrderName(draft.name);
-      const msg = `Draft order ${draft.name} created!\n\nOpen Shopify POS → Draft Orders to complete checkout with Tap to Pay.`;
+      const cart = await res.json();
+      setDraftOrderName(cart.name);
+
+      if (cart.checkoutUrl) {
+        const openCheckout = async () => {
+          try {
+            await Linking.openURL(cart.checkoutUrl);
+          } catch {}
+        };
+        if (Platform.OS === "web") {
+          window.open(cart.checkoutUrl, "_blank");
+        } else {
+          Alert.alert(
+            "Order Created",
+            "Cart ready for checkout. Open now?",
+            [
+              { text: "Later", style: "cancel" },
+              { text: "Open Checkout", onPress: openCheckout },
+            ]
+          );
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Failed to create order";
       if (Platform.OS === "web") {
         window.alert(msg);
       } else {
-        Alert.alert("Sent to POS", msg);
+        Alert.alert("Error", msg);
+      }
+    } finally {
+      setSendingToPOS(false);
+    }
+  }, [selectedVariant, quantity, selectedSellingPlanId]);
+
+  const handleCreateDraft = useCallback(async () => {
+    if (!selectedVariant) return;
+    setCreatingDraft(true);
+    try {
+      const lineItem: any = { variantId: selectedVariant.id, quantity };
+      if (selectedSellingPlanId) {
+        lineItem.sellingPlanId = selectedSellingPlanId;
+        // Include plan name for the draft order note
+        const plan = sellingPlans.find((p) => p.id === selectedSellingPlanId);
+        if (plan) lineItem.sellingPlanName = plan.name;
+      }
+      const res = await apiRequest("POST", "/api/shopify/admin/draft-order", {
+        lineItems: [lineItem],
+      });
+      const draft = await res.json();
+
+      const draftName = draft.name || "Draft Order";
+      const invoiceUrl = draft.invoiceUrl;
+
+      if (Platform.OS === "web") {
+        const msg = `${draftName} created!\n\nThis draft order is now visible in your Shopify Admin and POS app.${invoiceUrl ? "\n\nOpen the invoice link to email it to the customer?" : ""}`;
+        if (invoiceUrl && confirm(msg)) {
+          window.open(invoiceUrl, "_blank");
+        } else if (!invoiceUrl) {
+          window.alert(msg);
+        }
+      } else {
+        const buttons: any[] = [{ text: "OK" }];
+        if (invoiceUrl) {
+          buttons.unshift({
+            text: "Open Invoice",
+            onPress: () => Linking.openURL(invoiceUrl),
+          });
+        }
+        Alert.alert(
+          "Draft Order Created",
+          `${draftName} saved.\n\nVisible in Shopify Admin & POS app.`,
+          buttons,
+        );
       }
     } catch (err: any) {
       const msg = err?.message || "Failed to create draft order";
@@ -147,9 +291,9 @@ export default function ProductDetailScreen() {
         Alert.alert("Error", msg);
       }
     } finally {
-      setSendingToPOS(false);
+      setCreatingDraft(false);
     }
-  }, [selectedVariant, quantity]);
+  }, [selectedVariant, quantity, selectedSellingPlanId, sellingPlans]);
 
   if (isLoading) {
     return (
@@ -249,23 +393,81 @@ export default function ProductDetailScreen() {
           ) : null}
           <Text style={[styles.productTitle, { color: theme.text }]}>{product.title}</Text>
 
-          {selectedVariant && (
+          {resolvedPrice && (
             <View style={styles.priceSection}>
               <View style={styles.priceRow}>
                 <Text style={[styles.price, { color: theme.tint }]}>
-                  {formatPrice(selectedVariant.price.amount, selectedVariant.price.currencyCode)}
+                  {formatPrice(resolvedPrice.price.amount, resolvedPrice.price.currencyCode)}
                 </Text>
-                <Text style={[styles.priceLabel, { color: theme.tint }]}>Wholesale</Text>
+                <Text style={[styles.priceLabel, { color: theme.tint }]}>
+                  {selectedSellingPlanId ? "Subscription" : "Wholesale"}
+                </Text>
               </View>
-              {selectedVariant.compareAtPrice &&
-                parseFloat(selectedVariant.compareAtPrice.amount) > parseFloat(selectedVariant.price.amount) && (
+              {resolvedPrice.compareAtPrice &&
+                parseFloat(resolvedPrice.compareAtPrice.amount) > parseFloat(resolvedPrice.price.amount) && (
                   <View style={styles.priceRow}>
                     <Text style={[styles.comparePrice, { color: theme.textSecondary }]}>
-                      {formatPrice(selectedVariant.compareAtPrice.amount, selectedVariant.compareAtPrice.currencyCode)}
+                      {formatPrice(resolvedPrice.compareAtPrice.amount, resolvedPrice.compareAtPrice.currencyCode)}
                     </Text>
-                    <Text style={[styles.comparePriceLabel, { color: theme.textSecondary }]}>Retail</Text>
+                    <Text style={[styles.comparePriceLabel, { color: theme.textSecondary }]}>
+                      {selectedSellingPlanId ? "One-time price" : "Retail"}
+                    </Text>
                   </View>
                 )}
+            </View>
+          )}
+
+          {hasSellingPlans && (
+            <View style={styles.sellingPlanSection}>
+              <Text style={[styles.optionLabel, { color: theme.textSecondary }]}>Purchase Type</Text>
+              <View style={styles.sellingPlanToggle}>
+                <Pressable
+                  style={[
+                    styles.sellingPlanBtn,
+                    {
+                      backgroundColor: !selectedSellingPlanId ? theme.tint : theme.background,
+                      borderColor: !selectedSellingPlanId ? theme.tint : theme.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedSellingPlanId(null)}
+                >
+                  <Ionicons
+                    name="bag-outline"
+                    size={16}
+                    color={!selectedSellingPlanId ? "#FFF" : theme.text}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={[styles.sellingPlanBtnText, { color: !selectedSellingPlanId ? "#FFF" : theme.text }]}>
+                    One-time
+                  </Text>
+                </Pressable>
+                {sellingPlans.map((plan) => {
+                  const isSelected = selectedSellingPlanId === plan.id;
+                  return (
+                    <Pressable
+                      key={plan.id}
+                      style={[
+                        styles.sellingPlanBtn,
+                        {
+                          backgroundColor: isSelected ? "#8B5CF6" : theme.background,
+                          borderColor: isSelected ? "#8B5CF6" : theme.border,
+                        },
+                      ]}
+                      onPress={() => setSelectedSellingPlanId(plan.id)}
+                    >
+                      <Ionicons
+                        name="repeat-outline"
+                        size={16}
+                        color={isSelected ? "#FFF" : theme.text}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={[styles.sellingPlanBtnText, { color: isSelected ? "#FFF" : theme.text }]}>
+                        {plan.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
           )}
 
@@ -364,7 +566,28 @@ export default function ProductDetailScreen() {
 
         <Pressable
           style={[
-            styles.posBtn,
+            styles.actionBtn,
+            {
+              backgroundColor: product.availableForSale && selectedVariant?.availableForSale !== false ? "#F59E0B" : theme.textSecondary,
+              opacity: creatingDraft ? 0.7 : 1,
+            },
+          ]}
+          onPress={handleCreateDraft}
+          disabled={creatingDraft || !product.availableForSale || selectedVariant?.availableForSale === false}
+        >
+          {creatingDraft ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={16} color="#FFF" />
+              <Text style={styles.actionBtnText}>Draft</Text>
+            </>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.actionBtn,
             {
               backgroundColor: product.availableForSale && selectedVariant?.availableForSale !== false ? "#8B5CF6" : theme.textSecondary,
               opacity: sendingToPOS ? 0.7 : 1,
@@ -377,8 +600,8 @@ export default function ProductDetailScreen() {
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
-              <Ionicons name="phone-portrait-outline" size={18} color="#FFF" />
-              <Text style={styles.posBtnText}>POS</Text>
+              <Ionicons name="phone-portrait-outline" size={16} color="#FFF" />
+              <Text style={styles.actionBtnText}>POS</Text>
             </>
           )}
         </Pressable>
@@ -398,7 +621,7 @@ export default function ProductDetailScreen() {
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
-              <Ionicons name="cart-outline" size={20} color="#FFF" />
+              <Ionicons name="cart-outline" size={18} color="#FFF" />
               <Text style={styles.buyBtnText}>
                 {product.availableForSale && selectedVariant?.availableForSale !== false
                   ? "Buy Now"
@@ -443,6 +666,17 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
   tag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   tagText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  sellingPlanSection: { gap: 8, marginTop: 8 },
+  sellingPlanToggle: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  sellingPlanBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  sellingPlanBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   optionsSection: { padding: 16, marginTop: 8, gap: 16 },
   optionGroup: { gap: 8 },
   optionLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
@@ -467,16 +701,16 @@ const styles = StyleSheet.create({
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   qtyBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   qtyText: { fontSize: 16, fontFamily: "Inter_700Bold", minWidth: 24, textAlign: "center" },
-  posBtn: {
+  actionBtn: {
     flexDirection: "row",
-    height: 48,
-    borderRadius: 12,
+    height: 44,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 16,
+    gap: 4,
+    paddingHorizontal: 12,
   },
-  posBtnText: { color: "#FFF", fontSize: 14, fontFamily: "Inter_700Bold" },
+  actionBtnText: { color: "#FFF", fontSize: 12, fontFamily: "Inter_700Bold" },
   buyBtn: {
     flex: 1,
     flexDirection: "row",

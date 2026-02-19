@@ -1,4 +1,4 @@
-const ADMIN_API_VERSION = "2024-10";
+const ADMIN_API_VERSION = "2025-01";
 
 interface DraftOrderLineItem {
   variantId: string;
@@ -46,10 +46,30 @@ async function adminQuery(query: string, variables: Record<string, any> = {}) {
     },
     body: JSON.stringify({ query, variables }),
   });
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`Shopify Admin API HTTP ${res.status}: ${body}`);
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Shopify Admin API authentication failed (HTTP ${res.status}). Check that SHOPIFY_ADMIN_ACCESS_TOKEN has the required scopes (write_draft_orders, read_products).`
+      );
+    }
+    throw new Error(`Shopify Admin API error (HTTP ${res.status}): ${body.slice(0, 200)}`);
+  }
+
   const json = await res.json();
   if (json.errors) {
     console.error("Shopify Admin GraphQL errors:", JSON.stringify(json.errors));
-    throw new Error(json.errors[0]?.message || "Shopify Admin API error");
+    const msg = json.errors[0]?.message || "Shopify Admin API error";
+    // Detect scope/permission errors and provide a helpful re-authorization message
+    if (msg.toLowerCase().includes("access denied") || msg.toLowerCase().includes("required access")) {
+      throw new Error(
+        `${msg}. Your Admin API token may be missing required scopes. ` +
+        `Please re-authorize by visiting /api/shopify/auth/install to get a new token with the correct permissions.`
+      );
+    }
+    throw new Error(msg);
   }
   return json.data;
 }
@@ -64,6 +84,7 @@ export async function createDraftOrder(input: CreateDraftOrderInput) {
           status
           totalPrice
           currencyCode
+          invoiceUrl
           createdAt
           customer {
             id
@@ -115,12 +136,8 @@ export async function createDraftOrder(input: CreateDraftOrderInput) {
     draftInput.customAttributes = input.customAttributes;
   }
 
-  // Attach customer by email lookup or inline
+  // Attach customer by email if provided
   if (input.customer?.email) {
-    draftInput.purchasingEntity = {
-      customerId: undefined,
-    };
-    // Use email-based input instead - Shopify will find or create the customer
     draftInput.email = input.customer.email;
   }
 
@@ -150,10 +167,90 @@ export async function createDraftOrder(input: CreateDraftOrderInput) {
     status: draft.status,
     totalPrice: draft.totalPrice,
     currencyCode: draft.currencyCode,
+    invoiceUrl: draft.invoiceUrl,
     createdAt: draft.createdAt,
     customer: draft.customer,
     lineItems: draft.lineItems.edges.map((e: any) => e.node),
   };
+}
+
+export async function sendDraftOrderInvoice(draftOrderId: string, to?: string) {
+  const query = `
+    mutation draftOrderInvoiceSend($id: ID!, $email: EmailInput) {
+      draftOrderInvoiceSend(id: $id, email: $email) {
+        draftOrder {
+          id
+          name
+          status
+          invoiceSentAt
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables: any = { id: draftOrderId };
+  if (to) {
+    variables.email = { to };
+  }
+
+  const data = await adminQuery(query, variables);
+  if (data.draftOrderInvoiceSend.userErrors?.length > 0) {
+    throw new Error(data.draftOrderInvoiceSend.userErrors[0].message);
+  }
+  return data.draftOrderInvoiceSend.draftOrder;
+}
+
+export function isAdminConfigured(): boolean {
+  return !!(process.env.SHOPIFY_STORE_DOMAIN && process.env.SHOPIFY_ADMIN_ACCESS_TOKEN);
+}
+
+export async function checkAccessScopes() {
+  const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
+  const token = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || "";
+  const tokenPrefix = token ? token.substring(0, 10) + "..." : "(empty)";
+
+  if (!domain || !token) {
+    return { error: "Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ADMIN_ACCESS_TOKEN", tokenPrefix };
+  }
+
+  try {
+    const url = `https://${domain}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": token,
+      },
+      body: JSON.stringify({
+        query: `{ app { installation { accessScopes { handle } } } }`,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      return { error: `HTTP ${res.status}`, body: body.slice(0, 300), tokenPrefix };
+    }
+
+    const json = await res.json();
+    if (json.errors) {
+      return { error: "GraphQL errors", errors: json.errors, tokenPrefix };
+    }
+
+    const scopes = json.data?.app?.installation?.accessScopes?.map((s: any) => s.handle) || [];
+    return {
+      tokenPrefix,
+      domain,
+      scopes,
+      hasDraftOrders: scopes.includes("write_draft_orders"),
+      hasQuickSale: scopes.includes("write_quick_sale"),
+    };
+  } catch (err: any) {
+    return { error: err.message, tokenPrefix };
+  }
 }
 
 // ========== SHOPIFYQL ANALYTICS ==========

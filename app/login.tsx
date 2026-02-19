@@ -155,7 +155,7 @@ export default function LoginScreen() {
           <View style={[styles.logoCircle, { backgroundColor: theme.tint + "18" }]}>
             <Ionicons name="location" size={48} color={theme.tint} />
           </View>
-          <Text style={[styles.title, { color: theme.text }]}>KnockBase</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Feel Great D2D</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Door-to-door sales tracker
           </Text>
