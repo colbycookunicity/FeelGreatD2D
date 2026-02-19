@@ -486,46 +486,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Shopify POS Draft Order
+  // Shopify Order via Storefront Cart API
   app.post("/api/shopify/draft-order", requireAuth, async (req, res) => {
     try {
       const user = await storage.getUserById(req.session.userId!);
       if (!user) return res.status(401).json({ message: "User not found" });
 
-      const { lineItems, leadId, customerEmail, customerFirstName, customerLastName, customerPhone, shippingAddress } = req.body;
+      const { lineItems, leadId, customerEmail, customerFirstName, customerLastName } = req.body;
       if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
         return res.status(400).json({ message: "Line items required" });
       }
 
-      const tags = ["knockbase", `rep:${user.fullName}`];
-      const note = `KnockBase Order\nRep: ${user.fullName}`;
+      const note = `KnockBase Order | Rep: ${user.fullName}${leadId ? ` | Lead: ${leadId}` : ""}`;
       const customAttributes = [
         { key: "repId", value: user.id },
         { key: "repName", value: user.fullName },
+        { key: "source", value: "knockbase" },
       ];
 
       if (leadId) {
-        tags.push(`lead:${leadId}`);
         customAttributes.push({ key: "leadId", value: leadId });
       }
+      if (customerFirstName || customerLastName) {
+        customAttributes.push({ key: "customerName", value: `${customerFirstName || ""} ${customerLastName || ""}`.trim() });
+      }
 
-      const customer = customerEmail || customerFirstName || customerLastName || customerPhone
-        ? { firstName: customerFirstName, lastName: customerLastName, email: customerEmail, phone: customerPhone }
-        : undefined;
-
-      const draft = await shopifyAdmin.createDraftOrder({
+      const cart = await shopify.createCartWithAttributes(
         lineItems,
-        customer,
-        shippingAddress,
         note,
-        tags,
         customAttributes,
-      });
+        customerEmail || undefined,
+      );
 
-      res.status(201).json(draft);
+      res.status(201).json({
+        id: cart.id,
+        name: `Cart ${cart.id.split("/").pop()?.substring(0, 8) || ""}`,
+        checkoutUrl: cart.checkoutUrl,
+        totalQuantity: cart.totalQuantity,
+        cost: cart.cost,
+        lines: cart.lines,
+      });
     } catch (err: any) {
-      console.error("Draft order error:", err.message, err.stack);
-      res.status(500).json({ message: err.message || "Failed to create draft order" });
+      console.error("Cart order error:", err.message, err.stack);
+      res.status(500).json({ message: err.message || "Failed to create order" });
     }
   });
 

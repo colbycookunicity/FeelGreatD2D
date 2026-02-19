@@ -123,18 +123,37 @@ export default function LeadDetailScreen() {
         customerLastName: lead.lastName,
         customerEmail: lead.email || undefined,
         customerPhone: lead.phone || undefined,
-        shippingAddress: lead.address ? { address1: lead.address } : undefined,
       });
-      const draft = await res.json();
+      const cart = await res.json();
 
       setShowOrderModal(false);
       setOrderCart({});
 
-      const msg = `Draft order ${draft.name} created!\n\nOpen Shopify POS → Draft Orders to complete checkout with Tap to Pay.`;
-      if (Platform.OS === "web") {
-        window.alert(msg);
+      if (cart.checkoutUrl) {
+        const openCheckout = async () => {
+          try {
+            await Linking.openURL(cart.checkoutUrl);
+          } catch {}
+        };
+        if (Platform.OS === "web") {
+          window.open(cart.checkoutUrl, "_blank");
+        } else {
+          Alert.alert(
+            "Order Created",
+            `Cart ready for checkout.\n\nWould you like to open the checkout now?`,
+            [
+              { text: "Later", style: "cancel" },
+              { text: "Open Checkout", onPress: openCheckout },
+            ]
+          );
+        }
       } else {
-        Alert.alert("Order Sent to POS", msg);
+        const msg = `Order ${cart.name} created!`;
+        if (Platform.OS === "web") {
+          window.alert(msg);
+        } else {
+          Alert.alert("Order Created", msg);
+        }
       }
     } catch (err: any) {
       const msg = err?.message || "Failed to create order";

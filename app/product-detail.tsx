@@ -131,16 +131,30 @@ export default function ProductDetailScreen() {
       const res = await apiRequest("POST", "/api/shopify/draft-order", {
         lineItems: [{ variantId: selectedVariant.id, quantity }],
       });
-      const draft = await res.json();
-      setDraftOrderName(draft.name);
-      const msg = `Draft order ${draft.name} created!\n\nOpen Shopify POS → Draft Orders to complete checkout with Tap to Pay.`;
-      if (Platform.OS === "web") {
-        window.alert(msg);
-      } else {
-        Alert.alert("Sent to POS", msg);
+      const cart = await res.json();
+      setDraftOrderName(cart.name);
+
+      if (cart.checkoutUrl) {
+        const openCheckout = async () => {
+          try {
+            await Linking.openURL(cart.checkoutUrl);
+          } catch {}
+        };
+        if (Platform.OS === "web") {
+          window.open(cart.checkoutUrl, "_blank");
+        } else {
+          Alert.alert(
+            "Order Created",
+            "Cart ready for checkout. Open now?",
+            [
+              { text: "Later", style: "cancel" },
+              { text: "Open Checkout", onPress: openCheckout },
+            ]
+          );
+        }
       }
     } catch (err: any) {
-      const msg = err?.message || "Failed to create draft order";
+      const msg = err?.message || "Failed to create order";
       if (Platform.OS === "web") {
         window.alert(msg);
       } else {

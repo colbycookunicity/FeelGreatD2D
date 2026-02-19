@@ -263,6 +263,103 @@ export async function createCheckout(lineItems: { variantId: string; quantity: n
   };
 }
 
+export async function createCartWithAttributes(
+  lineItems: { variantId: string; quantity: number }[],
+  note?: string,
+  customAttributes?: { key: string; value: string }[],
+  customerEmail?: string,
+) {
+  const cartInput: any = {
+    lines: lineItems.map((item) => ({
+      merchandiseId: item.variantId,
+      quantity: item.quantity,
+    })),
+  };
+
+  if (note) {
+    cartInput.note = note;
+  }
+
+  if (customAttributes?.length) {
+    cartInput.attributes = customAttributes;
+  }
+
+  if (customerEmail) {
+    cartInput.buyerIdentity = { email: customerEmail };
+  }
+
+  const query = `
+    mutation cartCreate($input: CartInput!) {
+      cartCreate(input: $input) {
+        cart {
+          id
+          checkoutUrl
+          totalQuantity
+          note
+          cost {
+            totalAmount { amount currencyCode }
+            subtotalAmount { amount currencyCode }
+          }
+          lines(first: 20) {
+            edges {
+              node {
+                id
+                quantity
+                merchandise {
+                  ... on ProductVariant {
+                    id
+                    title
+                    price { amount currencyCode }
+                    product { title }
+                    image { url altText }
+                  }
+                }
+              }
+            }
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyQuery(query, { input: cartInput });
+  if (data.cartCreate.userErrors?.length > 0) {
+    throw new Error(data.cartCreate.userErrors[0].message);
+  }
+  const cart = data.cartCreate.cart;
+
+  let checkoutUrl: string = cart.checkoutUrl;
+  const domain = process.env.SHOPIFY_STORE_DOMAIN || "";
+  if (domain && checkoutUrl) {
+    try {
+      const parsed = new URL(checkoutUrl);
+      const shopifyHost = domain.replace(/^https?:\/\//, "");
+      if (parsed.hostname !== shopifyHost) {
+        parsed.hostname = shopifyHost;
+        const cartPathMatch = parsed.pathname.match(/(\/cart\/.*)/);
+        if (cartPathMatch) {
+          parsed.pathname = cartPathMatch[1];
+        }
+        checkoutUrl = parsed.toString();
+      }
+    } catch {
+    }
+  }
+
+  return {
+    id: cart.id,
+    checkoutUrl,
+    totalQuantity: cart.totalQuantity,
+    note: cart.note,
+    cost: cart.cost,
+    lines: cart.lines.edges.map((e: any) => e.node),
+  };
+}
+
 export async function getShopInfo() {
   const query = `{ shop { name description } }`;
   const data = await shopifyQuery(query);
