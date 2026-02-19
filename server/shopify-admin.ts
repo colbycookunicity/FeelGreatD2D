@@ -1,4 +1,4 @@
-const ADMIN_API_VERSION = "2024-10";
+const ADMIN_API_VERSION = "2025-01";
 
 interface DraftOrderLineItem {
   variantId: string;
