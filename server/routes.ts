@@ -61,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tableName: "user_sessions",
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "knockbase-dev-secret",
+      secret: process.env.SESSION_SECRET || "feelgreatd2d-dev-secret",
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -498,11 +498,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Line items required" });
       }
 
-      const note = `KnockBase Order | Rep: ${user.fullName}${leadId ? ` | Lead: ${leadId}` : ""}`;
+      const note = `Feel Great D2D Order | Rep: ${user.fullName}${leadId ? ` | Lead: ${leadId}` : ""}`;
       const customAttributes = [
         { key: "repId", value: user.id },
         { key: "repName", value: user.fullName },
-        { key: "source", value: "knockbase" },
+        { key: "source", value: "feelgreatd2d" },
       ];
 
       if (leadId) {
@@ -566,12 +566,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter((li: any) => li.sellingPlanName)
         .map((li: any) => `${li.sellingPlanName}`)
         .join(", ");
-      const noteLines = [`KnockBase Order | Rep: ${user.fullName}`];
+      const noteLines = [`Feel Great D2D Order | Rep: ${user.fullName}`];
       if (leadId) noteLines.push(`Lead: ${leadId}`);
       if (planNotes) noteLines.push(`Subscription: ${planNotes}`);
       const note = noteLines.join(" | ");
 
-      const tags = ["knockbase"];
+      const tags = ["feelgreatd2d"];
       if (lineItems.some((li: any) => li.sellingPlanId)) {
         tags.push("subscription");
       }
@@ -579,7 +579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customAttributes = [
         { key: "repId", value: user.id },
         { key: "repName", value: user.fullName },
-        { key: "source", value: "knockbase" },
+        { key: "source", value: "feelgreatd2d" },
       ];
       if (leadId) customAttributes.push({ key: "leadId", value: leadId });
 

@@ -88,11 +88,11 @@ Initial approach attempted to create a custom app through the Shopify Dev Dashbo
 | Detail | Value |
 | :---- | :---- |
 | **Path** | Settings \> Apps \> Develop apps \> Dev Dashboard |
-| **App Name Created** | KnockBase |
+| **App Name Created** | Feel Great D2D |
 | **Client ID Generated** | d2c0ef567f998839295caad508319d35 |
 | **Client Secret** | Generated but NOT shared (Admin API credential) |
 | **Issue** | Dev Dashboard only supports Admin API scopes. Storefront API scopes (unauthenticated\_\*) are not available in this interface. |
-| **Resolution** | Abandoned this approach. KnockBase app can be deleted. |
+| **Resolution** | Abandoned this approach. Feel Great D2D app can be deleted. |
 
 ## **Attempt 2: Headless Sales Channel (Correct Approach)**
 
@@ -151,9 +151,9 @@ The domain unicity-international-2.myshopify.com cannot be changed. This is a Sh
 
 Settings \> Domains shows TLS failures on unicity.com and www.unicity.com. This does not block the pilot but needs resolution. The working domains are gz9sfg-vd.myshopify.com and unicity-international-2.myshopify.com.
 
-## **KnockBase Dev Dashboard App**
+## **Feel Great D2D Dev Dashboard App**
 
-The KnockBase app created in the Dev Dashboard is not needed for this use case. It can be deleted. The Headless channel replaced it for Storefront API access.
+The Feel Great D2D app created in the Dev Dashboard is not needed for this use case. It can be deleted. The Headless channel replaced it for Storefront API access.
 
 # **Critical Path Blockers**
 

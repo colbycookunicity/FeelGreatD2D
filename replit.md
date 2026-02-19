@@ -1,7 +1,7 @@
-# KnockBase - Door-to-Door Sales App
+# Feel Great D2D - Door-to-Door Sales App
 
 ## Overview
-KnockBase is a mobile-first door-to-door sales tracking application built with Expo/React Native with a server-backed PostgreSQL database. It helps sales reps manage leads, track visits, and optimize their daily canvassing routes. Features multi-user authentication with role-based access control.
+Feel Great D2D is a mobile-first door-to-door sales tracking application built with Expo/React Native with a server-backed PostgreSQL database. It helps sales reps manage leads, track visits, and optimize their daily canvassing routes. Features multi-user authentication with role-based access control.
 
 ## Recent Changes
 - 2026-02-17: Removed password-based login entirely, OTP-only authentication via Hydra

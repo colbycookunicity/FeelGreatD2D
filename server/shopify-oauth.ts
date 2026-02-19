@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 const ADMIN_API_VERSION = "2025-01";
 
-// Scopes needed for KnockBase Admin API usage
+// Scopes needed for Feel Great D2D Admin API usage
 const REQUIRED_SCOPES = [
   "write_draft_orders",
   "read_draft_orders",
@@ -139,7 +139,7 @@ export function renderTokenPage(accessToken: string, scopes: string, shop: strin
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KnockBase - Shopify OAuth Complete</title>
+  <title>Feel Great D2D - Shopify OAuth Complete</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -244,7 +244,7 @@ export function renderTokenPage(accessToken: string, scopes: string, shop: strin
   <div class="card">
     <div class="success-icon">✓</div>
     <h1>Shopify App Installed Successfully</h1>
-    <p class="subtitle">KnockBase is now connected to <strong>${shop}</strong></p>
+    <p class="subtitle">Feel Great D2D is now connected to <strong>${shop}</strong></p>
 
     <div class="field">
       <label>Admin Access Token</label>

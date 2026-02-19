@@ -1,6 +1,6 @@
-# KnockBase Documentation
+# Feel Great D2D Documentation
 
-KnockBase is a mobile-first door-to-door sales tracking application. It helps sales teams manage leads, map territories, plan routes, and track performance — all from the field. The app includes multi-user authentication with role-based access control, an interactive map for canvassing, and an integrated product shop powered by Shopify.
+Feel Great D2D is a mobile-first door-to-door sales tracking application. It helps sales teams manage leads, map territories, plan routes, and track performance — all from the field. The app includes multi-user authentication with role-based access control, an interactive map for canvassing, and an integrated product shop powered by Shopify.
 
 ---
 
@@ -34,7 +34,7 @@ Use these credentials to log in and begin setting up your team.
 
 ### Accessing the App
 
-KnockBase is designed as a mobile-first application. You can access it in two ways:
+Feel Great D2D is designed as a mobile-first application. You can access it in two ways:
 
 - **Mobile (recommended):** Open the app using Expo Go on your iOS or Android device by scanning the QR code from the development server.
 - **Web:** Access the app through a browser. Note that map features (interactive pins, territory drawing, long-press to add leads) are only available on mobile — the web version shows a simplified fallback view.
@@ -43,7 +43,7 @@ KnockBase is designed as a mobile-first application. You can access it in two wa
 
 ## User Roles & Permissions
 
-KnockBase uses a three-tier role hierarchy:
+Feel Great D2D uses a three-tier role hierarchy:
 
 ### Admin
 
@@ -70,7 +70,7 @@ KnockBase uses a three-tier role hierarchy:
 
 ## Authentication
 
-KnockBase uses session-based authentication. Sessions are stored server-side in PostgreSQL and persist for up to 30 days.
+Feel Great D2D uses session-based authentication. Sessions are stored server-side in PostgreSQL and persist for up to 30 days.
 
 ### Login
 
@@ -466,7 +466,7 @@ All API endpoints are served from the Express backend on port 5000. Endpoints re
 
 ### Platform Patterns
 
-KnockBase uses platform-specific components to handle differences between mobile and web:
+Feel Great D2D uses platform-specific components to handle differences between mobile and web:
 
 - **Map components** (`NativeMap.tsx` / `NativeMap.web.tsx`) — Native maps on mobile, fallback UI on web
 - **Map picker** (`MapPickerNative.tsx` / `MapPickerNative.web.tsx`) — Tap-to-select location on mobile, fallback on web
