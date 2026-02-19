@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "KnockBase",
-    "slug": "knockbase",
+    "name": "Feel Great D2D",
+    "slug": "feel-great-d2d",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "knockbase",
+    "scheme": "feelgreatd2d",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,13 +15,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.knockbase",
+      "bundleIdentifier": "com.feelgreatd2d",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "KnockBase needs your location to drop pins at doors you visit and show nearby leads on the map."
+        "NSLocationWhenInUseUsageDescription": "Feel Great D2D needs your location to drop pins at doors you visit and show nearby leads on the map."
       }
     },
     "android": {
-      "package": "com.knockbase",
+      "package": "com.feelgreatd2d",
       "adaptiveIcon": {
         "backgroundColor": "#0F1923",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -47,7 +47,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "KnockBase needs your location to drop pins at doors you visit."
+          "locationWhenInUsePermission": "Feel Great D2D needs your location to drop pins at doors you visit."
         }
       ],
       "@react-native-community/datetimepicker"
