@@ -407,14 +407,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customAttributes.push({ key: "leadId", value: leadId });
       }
 
+      const customer = customerEmail || customerFirstName || customerLastName || customerPhone
+        ? { firstName: customerFirstName, lastName: customerLastName, email: customerEmail, phone: customerPhone }
+        : undefined;
+
       const draft = await shopifyAdmin.createDraftOrder({
         lineItems,
-        customer: {
-          firstName: customerFirstName,
-          lastName: customerLastName,
-          email: customerEmail,
-          phone: customerPhone,
-        },
+        customer,
         shippingAddress,
         note,
         tags,
@@ -423,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.status(201).json(draft);
     } catch (err: any) {
-      console.error("Draft order error:", err);
+      console.error("Draft order error:", err.message, err.stack);
       res.status(500).json({ message: err.message || "Failed to create draft order" });
     }
   });
