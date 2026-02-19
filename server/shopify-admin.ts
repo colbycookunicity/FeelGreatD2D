@@ -61,7 +61,15 @@ async function adminQuery(query: string, variables: Record<string, any> = {}) {
   const json = await res.json();
   if (json.errors) {
     console.error("Shopify Admin GraphQL errors:", JSON.stringify(json.errors));
-    throw new Error(json.errors[0]?.message || "Shopify Admin API error");
+    const msg = json.errors[0]?.message || "Shopify Admin API error";
+    // Detect scope/permission errors and provide a helpful re-authorization message
+    if (msg.toLowerCase().includes("access denied") || msg.toLowerCase().includes("required access")) {
+      throw new Error(
+        `${msg}. Your Admin API token may be missing required scopes. ` +
+        `Please re-authorize by visiting /api/shopify/auth/install to get a new token with the correct permissions.`
+      );
+    }
+    throw new Error(msg);
   }
   return json.data;
 }

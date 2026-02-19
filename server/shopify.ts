@@ -458,8 +458,13 @@ export async function createCartWithAttributes(
         if (cartPathMatch) {
           parsed.pathname = cartPathMatch[1];
         }
-        checkoutUrl = parsed.toString();
       }
+      // Pre-fill customer email on checkout page so it overrides any
+      // existing Shopify session cookie (e.g. the rep's own email)
+      if (trimmedEmail) {
+        parsed.searchParams.set("checkout[email]", trimmedEmail);
+      }
+      checkoutUrl = parsed.toString();
     } catch {
     }
   }
