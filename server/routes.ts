@@ -6,6 +6,7 @@ import { pool } from "./db";
 import * as storage from "./storage";
 import * as shopify from "./shopify";
 import * as shopifyAdmin from "./shopify-admin";
+import * as shopifyOAuth from "./shopify-oauth";
 import { insertUserSchema, insertOrgUnitSchema } from "@shared/schema";
 import { requestOtp, verifyOtp, HydraError } from "./services/hydraClient";
 
@@ -529,6 +530,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err: any) {
       console.error("Cart order error:", err.message, err.stack);
       res.status(500).json({ message: err.message || "Failed to create order" });
+    }
+  });
+
+  // ─── Shopify OAuth: Install flow to get Admin API access token ───
+
+  // Step 1: Visit this URL to start the OAuth install flow
+  app.get("/api/shopify/auth/install", (req, res) => {
+    try {
+      const forwardedProto = req.header("x-forwarded-proto") || req.protocol || "https";
+      const forwardedHost = req.header("x-forwarded-host") || req.get("host");
+      const baseUrl = `${forwardedProto}://${forwardedHost}`;
+      const installUrl = shopifyOAuth.getInstallUrl(baseUrl);
+      res.redirect(installUrl);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Step 2: Shopify redirects here after merchant approves the app
+  app.get("/api/shopify/auth/callback", async (req, res) => {
+    try {
+      const query: Record<string, string> = {};
+      for (const [key, value] of Object.entries(req.query)) {
+        if (typeof value === "string") query[key] = value;
+      }
+
+      const { accessToken, scopes } = await shopifyOAuth.handleCallback(query);
+      const shop = query.shop || process.env.SHOPIFY_STORE_DOMAIN || "unknown";
+
+      // Dynamically update the in-memory env so the admin client works immediately
+      process.env.SHOPIFY_ADMIN_ACCESS_TOKEN = accessToken;
+      console.log(`[Shopify OAuth] Token obtained for ${shop} with scopes: ${scopes}`);
+
+      // Render a page showing the token so the user can copy it into Replit Secrets
+      const html = shopifyOAuth.renderTokenPage(accessToken, scopes, shop);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.status(200).send(html);
+    } catch (err: any) {
+      console.error("Shopify OAuth callback error:", err);
+      res.status(500).json({ error: err.message });
     }
   });
 
